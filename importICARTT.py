@@ -1,36 +1,25 @@
-#########################################################################################################################
-# importICARTT.py                                        by:  Joseph Schlosser
-#                                                revised:  20 Feb 2022 
-#                                    language (revision):  python3 (3.8.2-0ubuntu2)
-# 
-# Description: procedure to open ICARTT file and format the data and headers into the output (output_dictionary) python 
-# dictionary. Each of the required inputs for this code are described as follows:
-# 1) filename: String or character containing the name of the desired ICARTT v2.0 (.ict) file.
-#
-# the output of this code is output_dictionary, which is a python3 dictionary containing column-arrays for each of the parameters
-# in the .ict file
-# -> each column corresponds to a line in the provided .ict file
-#
-#   EXAMPLES:
-#       output_dictionary = importICT.imp("activate-mrg1_hu25_20200214_R0.ict")
-#
-#       print(output_dictionary)
-#
-#       output_dictionary =
-#
-#           {'Time_Start_seconds': array([61301., 61302., 61303., ..., 72258., 72259., 72260.]), 
-#           'Time_Stop_seconds': array([61302., 61303., 61304., ..., 72259., 72260., 72261.]), 
-#           'Latitude_THORNHILL_ deg': array([37.085528, 37.085798, 37.086065, ..., 37.126424, 37.126694, ...
-#
-# WARNINGS:
-# 1) numpy must be installed to the python environment
-# 2) importICART.py and file with the corresponding filename must be present in a directory that is in your PATH
-#########################################################################################################################
-
 import numpy as np
 import datetime
 
-def imp(filename = None): 
+
+
+def imp(filename, num_time_columns): 
+    """
+    procedure to open ICARTT file and format the data and headers into the output (output_dictionary) python dictionary.WARNINGS: 1) numpy must be installed to the python environment, 2) importICART.py and file with the corresponding filename must be present in a directory that is in your PATH  
+
+    :param filename: String  containing the name of the desired ICARTT v2.0 (.ict) file.
+    :type filename: str  
+    :return: the output of this code is output_dictionary, which is a python3 dictionary containing column-arrays for each of the parameters in the .ict file
+    :rtype: numpy dictionary    
+
+    >>> output_dictionary = importICT.imp("activate-mrg1_hu25_20200214_R0.ict")
+    >>> print(output_dictionary)
+    output_dictionary =
+        {'Time_Start_seconds': array([61301., 61302., 61303., ..., 72258., 72259., 72260.]), 
+        'Time_Stop_seconds': array([61302., 61303., 61304., ..., 72259., 72260., 72261.]), 
+        'Latitude_THORNHILL_ deg': array([37.085528, 37.085798, 37.086065, ..., 37.126424, 37.126694, ...            
+    """
+
     G = open(filename, 'r') # open .ict file
     g = G.readlines() # read .ict file
     DATEinfo = np.array(g[6].split(",")) 
@@ -94,36 +83,55 @@ def imp(filename = None):
     for i1 in range(len(full_var_titles)):
         output_dictionary[("%s_%s"%(var_names[i1],var_units[i1]))] = data[:,i1]
 
-
+    output_dictionary["deployement"] = str(g[4]) # Add date to dictionary      
     output_dictionary["date"] = np.array(DATE) # Add date to dictionary  
-    dta = data[:,0] # fill dictionary with date 
-    frmttimedata = ["" for x in range(len(dta))] # create array of zeros for datetime data
-    mattimedata = np.zeros((len(dta),6)) # create array of zeros for datetime data
+    dta = data[:,range(num_time_columns)] # fill dictionary with date 
+    mattimedata = dict()# create array of zeros for datetime data
+    SAMtime = np.zeros((len(dta[:,0]),len(dta[0,:])))
 
     # fill empty arrays formated datetime and matix date time
-    for i1 in range(len(dta)):
-        if np.isnan(dta[i1]):
-            mattimedata[i1,:] = np.full((1,6), 'nan')
-            frmttimedata[i1] = 'nan'
-        else:   
-            Hrs = int(np.floor(dta[i1]/(60*60)))
-            Mnts = int(np.floor((dta[i1]/(60*60)-np.floor(dta[i1]/(60*60)))*60))
-            Secd = int(((dta[i1]/(60*60)-np.floor(dta[i1]/(60*60)))*60-np.floor((dta[i1]/(60*60)-np.floor(dta[i1]/(60*60)))*60))*60)
-            Yr = int(DATE[0])
-            Mon = int(DATE[1])
-            Day = int(DATE[2])
-            mattimedata[i1,:]  = [Yr,Mon,Day,Hrs,Mnts,Secd]
-            # set day to next dat if hours are greater than 23
-            if Hrs > 23:
-                Hrs = Hrs - 24
-                Day = Day + 1
-            frmttimedata[i1] = datetime.datetime(Yr,Mon,Day,Hrs,Mnts,Secd)
-    
+    frmttimedata = None
+    for i1 in range(len(dta[:,0])):
+        frmttimedata_temp = ["" for x in range(num_time_columns)] 
+        mattimedata[i1] = dict()
+        for i2 in range(num_time_columns):
+            if (dta[i1,i2]=='nan')|(dta[i1,i2]<0)|(np.isnan(dta[i1,i2])):
+                mattimedata[i1][i2] = 'nan'
+                SAMtime[i1,i2] = 'nan'
+            else:   
+                Hrs = int(np.floor(dta[i1,i2]/(60*60)))
+                Mnts = int(np.floor((dta[i1,i2]/(60*60)-np.floor(dta[i1,i2]/(60*60)))*60))
+                Secd = int(((dta[i1,i2]/(60*60)-np.floor(dta[i1,i2]/(60*60)))*60-
+                                np.floor((dta[i1,i2]/(60*60)-np.floor(dta[i1,i2]/(60*60)))*60))*60)
+                Yr = int(DATE[0])
+                Mon = int(DATE[1])
+                Day = int(DATE[2])
+               
+                if (i1 > 0) & (dta[i1,i2] < dta[i1-1,i2]):
+                    dte = datetime.datetime(Yr,Mon,Day,0,0,0) + datetime.timedelta(days=1, hours=Hrs, seconds=Secd, minutes=Mnts, 
+                                                                                microseconds=0, milliseconds=0, weeks=0)
+                    SAMtime[i1,i2] = dta[i1,i2] + dta[i1-1,i2] 
+                else:
+                    dte = datetime.datetime(Yr,Mon,Day,Hrs,Mnts,Secd)
+                    SAMtime[i1,i2] = dta[i1,i2]
+
+                mattimedata[i1][i2] = dte.timetuple()
+                frmttimedata_temp[i2] = dte
+        if frmttimedata is None:
+            frmttimedata = frmttimedata_temp
+        else:
+            frmttimedata = np.column_stack((frmttimedata,frmttimedata_temp))
+
     # Add frmttimedata and mattimedata to dictionary   
-    output_dictionary["fmtdatetime"] = frmttimedata
-    output_dictionary["matdatetime"] = mattimedata
 
-
+    if num_time_columns == 1:
+        output_dictionary['Time_Start_Seconds'] = SAMtime  
+        output_dictionary["fmtdatetime_Start"] = frmttimedata 
+    else:
+        output_dictionary['Time_Start_Seconds'] = SAMtime[:,0]
+        output_dictionary['Time_Stop_Seconds'] = SAMtime[:,1]
+        output_dictionary["fmtdatetime_Start"] = frmttimedata[0,:]  
+        output_dictionary["fmtdatetime_Stop"] = frmttimedata[1,:]  
     G.close() # close data file      
     return output_dictionary
     ##
