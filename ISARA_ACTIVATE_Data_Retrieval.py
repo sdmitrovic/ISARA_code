@@ -142,7 +142,7 @@ def RunISARA():
 
                 Dpg2 = dpg2[dndlogdp2>0]
                 dndlogdp2 = dndlogdp2[dndlogdp2>0]
-                Results = ISARA.Retr_CRI(wvl, meas_coef[0:3], meas_coef[0:3], dndlogdp1, dndlogdp2, Dpg1, Dpg2, CRI, size_equ, size_equ, 
+                Results = ISARA.Retr_CRI(wvl, meas_coef[0:3], meas_coef[3:], dndlogdp1, dndlogdp2, Dpg1, Dpg2, CRI, size_equ, size_equ, 
                     nonabs_fraction, nonabs_fraction, shape, shape, rho_dry, rho_dry, num_theta)    
 
                 if Results["RRIdry"] is not None:
@@ -157,9 +157,10 @@ def RunISARA():
                     meas_ext_coef_dry = measured_ext_coef_dry[i1]
                     meas_ssa_dry = measured_ssa_dry[:, i1]  
 
-                    if (RH_amb[i1].astype(str) != 'nan') and (measured_coef_amb[i1].astype(str) != 'nan'):
+                    #if (RH_amb[i1].astype(str) != 'nan') and (measured_coef_amb[i1].astype(str) != 'nan'):
+                    if measured_coef_amb[i1].astype(str) != 'nan':
                         meas_coef = np.multiply(measured_coef_amb[i1], pow(10, -6))
-                        Results = ISARA.Retr_kappa(wvl, meas_coef, dndlogdp1, dndlogdp2, Dpg1, Dpg2, RH_amb[i1], kappa, CRI_dry, CRI_dry,
+                        Results = ISARA.Retr_kappa(wvl, meas_coef, dndlogdp1, dndlogdp2, Dpg1, Dpg2, 80, kappa, CRI_dry, CRI_dry,
                             size_equ, size_equ, nonabs_fraction, nonabs_fraction, shape, shape, rho_amb, rho_amb, num_theta)
                         if Results["Kappa"] is not None:
                             Kappa = Results["Kappa"]
@@ -193,7 +194,7 @@ def RunISARA():
             measured_coef_dry = np.vstack((Sc[1:, :], Abs))
             measured_ext_coef_dry = Ext[1, :]
             measured_ssa_dry = SSA[0:3, :]
-            measured_coef_amb = Sc[0, :]
+            measured_coef_amb = measured_coef_dry[1,:]*fRH #Sc[0, :]
             measured_ext_coef_amb = Ext[0, :]
             measured_ssa_amb = SSA[-1, :]
             measured_fRH = fRH      
