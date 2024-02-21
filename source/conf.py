@@ -14,6 +14,7 @@
 import os
 import pathlib
 import sys
+import sphinx_rtd_theme
 sys.path.insert(0, pathlib.Path(__file__).parents[1].resolve().as_posix())
 
 
@@ -37,6 +38,7 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
+    'sphinx_rtd_theme'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
