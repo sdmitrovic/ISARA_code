@@ -22,12 +22,8 @@ We hope that the community uses this software to streamline verification of fiel
 
 
 
-Indices and tables
-==================
+:ref:`modindex`
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
 
 Contents
 --------
