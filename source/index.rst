@@ -1,10 +1,7 @@
-.. ISARA documentation master file, created by
-   sphinx-quickstart on Wed Jan 17 10:45:43 2024.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. ISARA documentation master file
 
 Welcome to ISARA's documentation!
-===================================
+---------------------------------
 
 In-situ Aerosol Retrieval Algorythm (**ISARA**) is an open-source Python codebase that retrieves aerosol particle refractive index hygroscopicity using user-inputted field campaign instrument data sets. This code relies on  Modeled Optical Properties of ensembles of Aerosol Particles (MOPSMAP) package [1].
  
@@ -16,13 +13,11 @@ We hope that the community uses this software to streamline verification of fiel
 
    This project is under active development.
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
-
 Index
-==================
+-----
+
+.. toctree::
+
 :ref:`modindex`
 
 
