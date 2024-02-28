@@ -14,7 +14,7 @@ Index
 
 .. toctree::
 
-:ref:`modindex`
+   :ref:`modindex`
 
 Contents
 --------

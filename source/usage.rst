@@ -1,5 +1,10 @@
 Usage
 =====
+Acknowledgements
+----------------
+
+ISARA is being developed in collaboration with the Office of Naval Research, NASA Langley Research Center, and the University of Arizona.
+
 
 Installation
 ------------

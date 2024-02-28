@@ -8,8 +8,3 @@ In-situ Aerosol Retrieval Algorythm (**ISARA**) is an open-source Python codebas
 We hope that the community uses this software to streamline verification of field aerosol data sets and ultimately advance field campaign data quality assurance. More information on this software including installation and use can be found in this "User Guide". 
 
 
-Acknowledgements
-----------------
-
-ISARA is being developed in collaboration with the Office of Naval Research, NASA Langley Research Center, and the University of Arizona.
-
