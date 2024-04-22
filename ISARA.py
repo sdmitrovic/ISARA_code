@@ -118,10 +118,19 @@ def Retr_CRI(wvl,
     RRI[2] = np.mean(rri[flgs])
     IRI[2] = np.mean(iri[flgs])    
     results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,kappa,num_theta) 
-    Results["scat_coef"] = results['ssa'][[0,3,5]]*results['ext_coeff'][[0,3,5]]
-    Results["abs_coef"] = results['ext_coeff'][[1,2,4]]-results['ssa'][[1,2,4]]*results['ext_coeff'][[1,2,4]]
-    Results["SSA"] = results['ssa']
-    Results["ext_coef"] = results['ext_coeff']
+
+    scat_coef = results['ssa'][[0,3,5]]*results['ext_coeff'][[0,3,5]]
+    abs_coef = results['ext_coeff'][[1,2,4]]-results['ssa'][[1,2,4]]*results['ext_coeff'][[1,2,4]]   
+    Cdif1 = abs(measured_sca_coef-scat_coef)/measured_sca_coef
+    Cdif2 = abs(measured_abs_coef-abs_coef)
+    a1 = ((Cdif1)<0.2).astype('int')
+    a1[np.isinf(a1)]=0
+    a2 = ((Cdif2)<pow(10,-6)).astype('int')#
+    if np.sum(a1)==3 & np.sum(a2)==3:
+      Results["scat_coef"] = results['ssa'][[0,3,5]]*results['ext_coeff'][[0,3,5]]
+      Results["abs_coef"] = results['ext_coeff'][[1,2,4]]-results['ssa'][[1,2,4]]*results['ext_coeff'][[1,2,4]]
+      Results["SSA"] = results['ssa']
+      Results["ext_coef"] = results['ext_coeff']
 
   return Results
 
