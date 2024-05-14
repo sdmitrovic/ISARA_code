@@ -67,13 +67,13 @@ def imp(filename, num_time_columns):
         processdata1 = rawdata[i1]
         processdata2 = processdata1.split(",")
         if processdata2 == ['\n']:
-            data[i1,:] =  np.full((1,len(full_var_titles)), 'nan')
+            data[i1,:] =  np.full((1,len(full_var_titles)), np.nan)
         else:
             for i2 in np.arange(0,len(processdata2)).reshape(-1):
                 if not processdata2[i2]:
-                    processdata2[i2] = 'nan'
+                    processdata2[i2] = np.nan
                 elif processdata2[i2] == fv[np.add(i2,- 1)]:
-                    processdata2[i2] = 'nan'
+                    processdata2[i2] = np.nan
             data[i1,:] = processdata2
     
     # creat empty dictionary
@@ -87,17 +87,17 @@ def imp(filename, num_time_columns):
     output_dictionary["date"] = np.array(DATE) # Add date to dictionary  
     dta = data[:,range(num_time_columns)] # fill dictionary with date 
     mattimedata = dict()# create array of zeros for datetime data
-    SAMtime = np.zeros((len(dta[:,0]),len(dta[0,:])))
-
+    SAMtime = np.empty((len(dta[:,0]),len(dta[0,:])))
+    SAMtime[:] = np.nan
     # fill empty arrays formated datetime and matix date time
-    frmttimedata = None
+    frmttimedata = np.empty((len(dta[:,0]),len(dta[0,:]))).astype('datetime64[s]')
+    
     for i1 in range(len(dta[:,0])):
-        frmttimedata_temp = ["" for x in range(num_time_columns)] 
         mattimedata[i1] = dict()
         for i2 in range(num_time_columns):
-            if (dta[i1,i2]=='nan')|(dta[i1,i2]<0)|(np.isnan(dta[i1,i2])):
-                mattimedata[i1][i2] = 'nan'
-                SAMtime[i1,i2] = 'nan'
+            if np.isnan(dta[i1,i2]):
+                mattimedata[i1][i2] = np.nan
+                SAMtime[i1,i2] = np.nan
             else:   
                 Hrs = int(np.floor(dta[i1,i2]/(60*60)))
                 Mnts = int(np.floor((dta[i1,i2]/(60*60)-np.floor(dta[i1,i2]/(60*60)))*60))
@@ -116,11 +116,7 @@ def imp(filename, num_time_columns):
                     SAMtime[i1,i2] = dta[i1,i2]
 
                 mattimedata[i1][i2] = dte.timetuple()
-                frmttimedata_temp[i2] = dte
-        if frmttimedata is None:
-            frmttimedata = frmttimedata_temp
-        else:
-            frmttimedata = np.column_stack((frmttimedata,frmttimedata_temp))
+                frmttimedata[i1,i2] = dte
 
     # Add frmttimedata and mattimedata to dictionary   
 
@@ -130,8 +126,8 @@ def imp(filename, num_time_columns):
     else:
         output_dictionary['Time_Start_Seconds'] = SAMtime[:,0]
         output_dictionary['Time_Stop_Seconds'] = SAMtime[:,1]
-        output_dictionary["fmtdatetime_Start"] = frmttimedata[0,:]  
-        output_dictionary["fmtdatetime_Stop"] = frmttimedata[1,:]  
+        output_dictionary["fmtdatetime_Start"] = frmttimedata[:,0]  
+        output_dictionary["fmtdatetime_Stop"] = frmttimedata[:,1]  
     G.close() # close data file      
     return output_dictionary
     ##

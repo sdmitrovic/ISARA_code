@@ -72,8 +72,8 @@ def RunISARA():
     size_equ = 'cs' 
 
     RRIp = np.array([1.53])#np.arange(1.45,2.01,0.01).reshape(-1)
-    IRIp = np.hstack((0,10**(-7),10**(-6),10**(-5),10**(-4),np.arange(0.001,0.101,0.001).reshape(-1),np.arange(0.1,0.96,0.01).reshape(-1)))#np.arange(0.0,0.08,0.001).reshape(-1)
-    CRI = np.zeros((len(IRIp)*len(RRIp), 2))
+    IRIp = np.hstack((0,10**(-7),10**(-6),10**(-5),10**(-4),np.arange(0.001,0.101,0.001).reshape(-1),np.arange(0.1,0.96,0.01).reshape(-1)))#np.hstack((0,10**(-7),10**(-6),10**(-5),10**(-4),np.arange(0.001,0.101,0.001).reshape(-1),np.arange(0.1,0.96,0.01).reshape(-1)))#np.arange(0.0,0.08,0.001).reshape(-1)
+    CRI = np.empty((len(IRIp)*len(RRIp), 2))
     io = 0
     for i1 in range(len(IRIp)):
         for i2 in range(len(RRIp)):
@@ -110,9 +110,9 @@ def RunISARA():
 
             meas_coef = np.multiply(measured_coef_dry[:, i1], pow(10, -6))
             dndlogdp1 = np.multiply(sd1[:, i1], pow(10, 6))
-            dndlogdp1[np.where(dndlogdp1.astype(str) == 'nan')] = 0
+            dndlogdp1[np.where(dndlogdp1 ==0)[0]] = np.nan
             dndlogdp2 = np.multiply(sd2[:, i1], pow(10, 6))
-            dndlogdp2[np.where(dndlogdp2.astype(str) == 'nan')] = 0 
+            dndlogdp2[np.where(dndlogdp2 ==0)[0]] = np.nan
     
 
             # This is where things become a pain :( Since we are spreading the work across multiple cores, there is a copy of the data in each core. Therefore, we are not able to easily make updates to the numpy arrays, so instead we will obtain the results for each line then join them together after the multiprocessing occurs.
@@ -136,12 +136,15 @@ def RunISARA():
             meas_fRH = None
             
             # You will notice that in the code, instead of doing things like CRI_dry[:, i1] = ..., we are instead just assining the value for this row instead and then they will be merged later
-            if (len(dndlogdp1[dndlogdp1>0])>3) & (len(dndlogdp2[dndlogdp2>0])>3) &(len(np.where(meas_coef.astype(str)!='nan')[0]) == 6):
-                Dpg1 = dpg1[dndlogdp1>0]
-                dndlogdp1 = dndlogdp1[dndlogdp1>0]  
+            dpflg1 = np.where(np.logical_not(np.isnan(dndlogdp1)))[0]
+            dpflg2 = np.where(np.logical_not(np.isnan(dndlogdp2)))[0]
+            measflg = np.where(np.logical_not(np.isnan(meas_coef)))[0]
+            if (len(dndlogdp1[dpflg1])>3) & (len(dndlogdp2[dpflg2])>3) &(len(meas_coef[measflg]) == 6):
+                Dpg1 = dpg1[dpflg1]
+                dndlogdp1 = dndlogdp1[dpflg1]  
 
-                Dpg2 = dpg2[dndlogdp2>0]
-                dndlogdp2 = dndlogdp2[dndlogdp2>0]
+                Dpg2 = dpg2[dpflg2]
+                dndlogdp2 = dndlogdp2[dpflg2]
                 Results = ISARA.Retr_CRI(wvl, meas_coef[0:3], meas_coef[3:], dndlogdp1, dndlogdp2, Dpg1, Dpg2, CRI, size_equ, size_equ, 
                     nonabs_fraction, nonabs_fraction, shape, shape, rho_dry, rho_dry, num_theta)    
 
@@ -171,7 +174,8 @@ def RunISARA():
                             meas_ext_coef_amb = measured_ext_coef_amb[i1]
                             meas_ssa_amb = measured_ssa_amb[i1]
                             meas_fRH = measured_fRH[i1]
-                            CalfRH = np.zeros(len(CalCoef_amb))
+                            CalfRH = np.empty(len(CalCoef_amb))
+                            CalfRH[:] = np.nan
                             for i3 in range(len(CalCoef_amb)):
                                 if CalExtCoef_dry[i3]>0:
                                     CalfRH[i3] = CalCoef_amb[i3]/(CalExtCoef_dry[i3]*CalSSA_dry[i3])
@@ -189,7 +193,7 @@ def RunISARA():
         (output_dict, time, date, alt, lat, lon, sd1, sd2, RH_amb, RH_sp, Sc,
          Abs, Ext, SSA, fRH) = grab_ICT_Data(f'./misc/ACTIVATE/FalconSMPS/{input_filename}')
         if RH_amb.size > 1:
-            RH_amb[RH_amb > 99] = 99    
+            #RH_amb[RH_amb > 99] = 99    
 
             measured_coef_dry = np.vstack((Sc[1:, :], Abs))
             measured_ext_coef_dry = Ext[1, :]
@@ -202,24 +206,42 @@ def RunISARA():
             Lwvl = len(wvl)
             Lwvl_s = int(Lwvl/2)
             L1 = len(sd1[0, :])
-            RRI_dry = np.zeros((1, L1))
-            IRI_dry = np.zeros((1, L1))
-            CalScatCoef_dry = np.zeros((Lwvl_s, L1))
-            CalAbsCoef_dry = np.zeros((Lwvl_s, L1))
-            CalExtCoef_dry = np.zeros((Lwvl, L1))
-            CalSSA_dry = np.zeros((Lwvl, L1))
-            meas_coef_dry = np.zeros((Lwvl, L1))
-            meas_coef_amb = np.zeros((1, L1))
-            meas_ext_coef_dry = np.zeros((1, L1))
-            meas_ssa_dry = np.zeros((3, L1))
-            Kappa = np.zeros((1,L1))
-            CalCoef_amb = np.zeros((Lwvl, L1))
-            CalfRH = np.zeros((Lwvl, L1))
-            CalExtCoef_amb = np.zeros((Lwvl, L1))
-            CalSSA_amb = np.zeros((Lwvl, L1))
-            meas_ext_coef_amb = np.zeros((1, L1))
-            meas_ssa_amb = np.zeros((1, L1)) 
-            meas_fRH = np.zeros((1, L1))  
+            RRI_dry = np.empty((1, L1))
+            RRI_dry[:]=np.nan
+            IRI_dry = np.empty((1, L1))
+            IRI_dry[:]=np.nan
+            CalScatCoef_dry = np.empty((Lwvl_s, L1))
+            CalScatCoef_dry[:]=np.nan
+            CalAbsCoef_dry = np.empty((Lwvl_s, L1))
+            CalAbsCoef_dry[:]=np.nan
+            CalExtCoef_dry = np.empty((Lwvl, L1))
+            CalExtCoef_dry[:]=np.nan
+            CalSSA_dry = np.empty((Lwvl, L1))
+            CalSSA_dry[:]=np.nan
+            meas_coef_dry = np.empty((Lwvl, L1))
+            meas_coef_dry[:]=np.nan
+            meas_coef_amb = np.empty((1, L1))
+            meas_coef_amb[:]=np.nan
+            meas_ext_coef_dry = np.empty((1, L1))
+            meas_ext_coef_dry[:]=np.nan
+            meas_ssa_dry = np.empty((3, L1))
+            meas_ssa_dry[:]=np.nan
+            Kappa = np.empty((1,L1))
+            Kappa[:]=np.nan
+            CalCoef_amb = np.empty((Lwvl, L1))
+            CalCoef_amb[:]=np.nan
+            CalfRH = np.empty((Lwvl, L1))
+            CalfRH[:]=np.nan
+            CalExtCoef_amb = np.empty((Lwvl, L1))
+            CalExtCoef_amb[:]=np.nan
+            CalSSA_amb = np.empty((Lwvl, L1))
+            CalSSA_amb[:]=np.nan
+            meas_ext_coef_amb = np.empty((1, L1))
+            meas_ext_coef_amb[:]=np.nan
+            meas_ssa_amb = np.empty((1, L1)) 
+            meas_ssa_amb[:]=np.nan
+            meas_fRH = np.empty((1, L1))  
+            meas_fRH[:]=np.nan
             # Loop through each of the rows here using multiprocessing. This will split the rows across multiple different cores. Each row will be its own index in `line_data` with a tuple full of information. So, for instance, line_data[0] will contain (CRI_dry, CalCoef_dry, meas_coef_dry, Kappa, CalCoef_amb, meas_coef_amb, results) for the first line of data
             line_data = pool.map(
                 # This is a pain, I know, but all the data has to be cloned and accessible within each worker
