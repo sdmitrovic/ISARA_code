@@ -177,7 +177,7 @@ def RunISARA():
                             CalfRH = np.empty(len(CalCoef_amb))
                             CalfRH[:] = np.nan
                             for i3 in range(len(CalCoef_amb)):
-                                if CalExtCoef_dry[i3]>0:
+                                if CalExtCoef_dry is not None:
                                     CalfRH[i3] = CalCoef_amb[i3]/(CalExtCoef_dry[i3]*CalSSA_dry[i3])
             return (RRI_dry, IRI_dry, CalScatCoef_dry, CalAbsCoef_dry, CalExtCoef_dry, CalSSA_dry, meas_coef_dry, 
                     meas_ext_coef_dry, meas_ssa_dry, Kappa, CalCoef_amb, CalExtCoef_amb, CalSSA_amb, CalfRH,
