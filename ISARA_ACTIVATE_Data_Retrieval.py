@@ -72,7 +72,7 @@ def RunISARA():
     size_equ = 'cs' 
 
     RRIp = np.array([1.53])#np.arange(1.45,2.01,0.01).reshape(-1)
-    IRIp = np.hstack((0,10**(-7),10**(-6),10**(-5),10**(-4),np.arange(0.001,0.101,0.001).reshape(-1),np.arange(0.1,0.96,0.01).reshape(-1)))#np.hstack((0,10**(-7),10**(-6),10**(-5),10**(-4),np.arange(0.001,0.101,0.001).reshape(-1),np.arange(0.1,0.96,0.01).reshape(-1)))#np.arange(0.0,0.08,0.001).reshape(-1)
+    IRIp = np.hstack((0,10**(-7),10**(-6),10**(-5),10**(-4),np.arange(0.001,0.0801,0.001).reshape(-1)))#np.hstack((0,10**(-7),10**(-6),10**(-5),10**(-4),np.arange(0.001,0.101,0.001).reshape(-1),np.arange(0.1,0.96,0.01).reshape(-1)))#np.arange(0.0,0.08,0.001).reshape(-1)
     CRI = np.empty((len(IRIp)*len(RRIp), 2))
     io = 0
     for i1 in range(len(IRIp)):
@@ -193,6 +193,7 @@ def RunISARA():
         (output_dict, time, date, alt, lat, lon, sd1, sd2, RH_amb, RH_sp, Sc,
          Abs, Ext, SSA, fRH) = grab_ICT_Data(f'./misc/ACTIVATE/FalconSMPS/{input_filename}')
         if RH_amb.size > 1:
+            print(RH_amb)
             #RH_amb[RH_amb > 99] = 99    
 
             measured_coef_dry = np.vstack((Sc[1:, :], Abs))
