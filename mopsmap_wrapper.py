@@ -36,6 +36,10 @@ def Model(wvl,size_equ,dndlogdp,dpg,RRI,IRI,nonabs_fraction,shape,density,RH,kap
   :type kappa: numpy dictionary with keys for each mode as double
   :param num_theta: number of scattering angles in output
   :type num_theta: int                   
+  :param optical_dataset: String indicating the path for the optical dataset required for MOPSMAP.
+  :type optical_dataset: str
+  :param path_mopsmap_executable: String indicating the path for the mopsmap.exe file.
+  :type path_mopsmap_executable: str    
   :return: dictionary of all forward modeled aerosol properties available from MOSPMAP.
   :rtype: numpy dictionary
   """  

@@ -16,6 +16,8 @@ def Retr_CRI(wvl,
   rho1,
   rho2,
   num_theta,
+  optical_dataset, 
+  path_mopsmap_executable,
 ):
 
   """
@@ -46,10 +48,16 @@ def Retr_CRI(wvl,
   :type shape1: str
   :param shape2: String indicating the desired particle shape(s) for second mode.
   :type shape2: str  
-  :param rho1: String indicating the desired particle density in g m^-3 for first mode.
-  :type rho1: str
-  :param rho2: String indicating the desired particle density in g m^-3 for second mode.
-  :type rho2: str                                        
+  :param rho1: Double indicating the desired particle density in g m^-3 for first mode.
+  :type rho1: double
+  :param rho2: Double indicating the desired particle density in g m^-3 for second mode.
+  :type rho2: double     
+  :param num_theta: Integer indicating the number of phase function angles to provide.
+  :type num_theta: int       
+  :param optical_dataset: String indicating the path for the optical dataset required for MOPSMAP.
+  :type optical_dataset: str
+  :param path_mopsmap_executable: String indicating the path for the mopsmap.exe file.
+  :type path_mopsmap_executable: str                                  
   :return: Real refractive index, imaginary refractive index, calculated scattering and absorption coefficients in native measurements, and calculated single scattering albedo and extinction coefficients in all wavelengths.
   :rtype: numpy dictionary
   """
@@ -150,6 +158,8 @@ def Retr_kappa(wvl,
   rho1,
   rho2,
   num_theta,
+  optical_dataset, 
+  path_mopsmap_executable,
 ):
   """
   Returns aerosol particle hygroscopic growth factor from three dry scattering coefficeint measurements, three humidifide scattering coefficient measurements, a measured number concentration for an aerosol size distribution. WARNINGS: 1) numpy must be installed to the python environment 2) mopsmap_SD_run.py must be present in a directory that is in your PATH
@@ -181,10 +191,16 @@ def Retr_kappa(wvl,
   :type shape1: str
   :param shape2: String indicating the desired particle shape(s) for second mode.
   :type shape2: str  
-  :param rho1: String indicating the desired particle density in g m^-3 for first mode.
-  :type rho1: str
-  :param rho2: String indicating the desired particle density in g m^-3 for second mode.
-  :type rho2: str                                        
+  :param rho1: Double indicating the desired particle density in g m^-3 for first mode.
+  :type rho1: double
+  :param rho2: Double indicating the desired particle density in g m^-3 for second mode.
+  :type rho2: double     
+  :param num_theta: Integer indicating the number of phase function angles to provide.
+  :type num_theta: int       
+  :param optical_dataset: String indicating the path for the optical dataset required for MOPSMAP.
+  :type optical_dataset: str
+  :param path_mopsmap_executable: String indicating the path for the mopsmap.exe file.
+  :type path_mopsmap_executable: str                                         
   :return: Real refractive index, imaginary refractive index, calculated scattering and absorption coefficients in native measurements, and calculated single scattering albedo and extinction coefficients in all wavelengths.
   :rtype: numpy dictionary
   """
@@ -236,7 +252,7 @@ def Retr_kappa(wvl,
     IRI[2] = CRI2[1]
 
     if stop_indx == 0:
-      results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,kappa,num_theta)
+      results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,kappa,num_theta,optical_dataset,path_mopsmap_executable)
       scat_coef = results['ssa']*results['ext_coeff']
       abs_coef = results['ext_coeff']-results['ssa']*results['ext_coeff']
       Cdif = (measured_wet_sca_coef-scat_coef[3])/measured_wet_sca_coef
