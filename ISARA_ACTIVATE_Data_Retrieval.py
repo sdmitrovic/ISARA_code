@@ -21,6 +21,8 @@ def RunISARA():
     182
     182
     """   
+    path_optical_dataset='./optical_dataset/'
+    path_mopsmap_executable=r'../mopsmap'
 
     sys.path.insert(0, os.path.abspath("../"))  
 
@@ -103,7 +105,7 @@ def RunISARA():
     def handle_line(sd1, sd2, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
                         measured_coef_amb, measured_ext_coef_amb, measured_ssa_amb, measured_fRH,
                         wvl, size_equ, dpg1, dpg2, CRI, nonabs_fraction, shape, rho_dry,
-                        RH_sp, kappa, num_theta, RH_amb, rho_amb):
+                        RH_sp, kappa, num_theta, RH_amb, rho_amb,optical_dataset,path_mopsmap_executable):
                     
         # So this code may look a bit funky, but we are doing what is called currying. This is simply the idea of returning a function inside of a function. It may look weird doing this, but this is actually required so that each worker has the necessary data. What ends up happening is each worker is passed a full copy of all the data contained within this function, so it has to know what data needs to be copied. Anyhow, the inner `curry` function is what is actually being called for each iteration of the for loop.
         def curry(i1):  
@@ -146,7 +148,7 @@ def RunISARA():
                 Dpg2 = dpg2[dpflg2]
                 dndlogdp2 = dndlogdp2[dpflg2]
                 Results = ISARA.Retr_CRI(wvl, meas_coef[0:3], meas_coef[3:], dndlogdp1, dndlogdp2, Dpg1, Dpg2, CRI, size_equ, size_equ, 
-                    nonabs_fraction, nonabs_fraction, shape, shape, rho_dry, rho_dry, num_theta)    
+                    nonabs_fraction, nonabs_fraction, shape, shape, rho_dry, rho_dry, num_theta, optical_dataset, path_mopsmap_executable)    
 
                 if Results["RRIdry"] is not None:
                     RRI_dry = Results["RRIdry"]
@@ -164,7 +166,8 @@ def RunISARA():
                     if measured_coef_amb[i1].astype(str) != 'nan':
                         meas_coef = np.multiply(measured_coef_amb[i1], pow(10, -6))
                         Results = ISARA.Retr_kappa(wvl, meas_coef, dndlogdp1, dndlogdp2, Dpg1, Dpg2, 80, kappa, CRI_dry, CRI_dry,
-                            size_equ, size_equ, nonabs_fraction, nonabs_fraction, shape, shape, rho_amb, rho_amb, num_theta)
+                            size_equ, size_equ, nonabs_fraction, nonabs_fraction, shape, shape, rho_amb, rho_amb, num_theta,
+                            optical_dataset, path_mopsmap_executable)
                         if Results["Kappa"] is not None:
                             Kappa = Results["Kappa"]
                             CalCoef_amb = Results["Cal_coef"]
@@ -249,7 +252,7 @@ def RunISARA():
                 handle_line(sd1, sd2, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
                             measured_coef_amb, measured_ext_coef_amb, measured_ssa_amb, measured_fRH,
                             wvl, size_equ, dpg1, dpg2, CRI, nonabs_fraction, shape, rho_dry,
-                            RH_sp, kappa, num_theta, RH_amb, rho_amb),
+                            RH_sp, kappa, num_theta, RH_amb, rho_amb, optical_dataset, path_mopsmap_executable),
                 range(L1),
             )
             # Now that the data has been fetched, we have to join together all the results into aggregated arrays. The `enumerate` function simply loops through the elements in the array and attaches the associated array index to it.

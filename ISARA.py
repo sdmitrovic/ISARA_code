@@ -97,7 +97,7 @@ def Retr_CRI(wvl,
     RRI[2] = CRI[i1,0]
     IRI[2] = CRI[i1,1]
 
-    results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,kappa,num_theta)
+    results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,kappa,num_theta,optical_dataset,path_mopsmap_executable)
     scat_coef = results['ssa'][[0,3,5]]*results['ext_coeff'][[0,3,5]]
     abs_coef = results['ext_coeff'][[1,2,4]]-results['ssa'][[1,2,4]]*results['ext_coeff'][[1,2,4]]   
     Cdif1 = abs(measured_sca_coef-scat_coef)/measured_sca_coef
@@ -117,7 +117,7 @@ def Retr_CRI(wvl,
     IRI[1] = np.mean(iri[flgs])
     RRI[2] = np.mean(rri[flgs])
     IRI[2] = np.mean(iri[flgs])    
-    results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,kappa,num_theta) 
+    results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,kappa,num_theta,optical_dataset,path_mopsmap_executable) 
 
     scat_coef = results['ssa'][[0,3,5]]*results['ext_coeff'][[0,3,5]]
     abs_coef = results['ext_coeff'][[1,2,4]]-results['ssa'][[1,2,4]]*results['ext_coeff'][[1,2,4]]   

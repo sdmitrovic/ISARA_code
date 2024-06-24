@@ -7,10 +7,7 @@ import sys
 from os.path import isfile
 from os import remove
 
-path_optical_dataset='./optical_dataset/'
-path_mopsmap_executable=r'./mopsmap'
-
-def Model(wvl,size_equ,dndlogdp,dpg,RRI,IRI,nonabs_fraction,shape,density,RH,kappa,num_theta):
+def Model(wvl,size_equ,dndlogdp,dpg,RRI,IRI,nonabs_fraction,shape,density,RH,kappa,num_theta,path_optical_dataset,path_mopsmap_executable):
 
   """
   Interface with the Modeled Optical Properties of ensembles of Aerosol Particles (MOPSMAP) package to return forward modeled aerosol optical properties [1]. [1] Gasteiger, J., & Wiegner, M. (2018). MOPSMAP v1.0: a versatile tool for the modeling of aerosol optical properties. Geosci. Model Dev., 11(7), 2739-2762. doi:10.5194/gmd-11-2739-2018
