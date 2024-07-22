@@ -87,10 +87,9 @@ def imp(filename, num_time_columns):
     output_dictionary["date"] = np.array(DATE) # Add date to dictionary  
     dta = data[:,range(num_time_columns)] # fill dictionary with date 
     mattimedata = dict()# create array of zeros for datetime data
-    SAMtime = np.empty((len(dta[:,0]),len(dta[0,:])))
-    SAMtime[:] = np.nan
+    SAMtime = np.full((len(dta[:,0]),len(dta[0,:])),np.nan)
     # fill empty arrays formated datetime and matix date time
-    frmttimedata = np.empty((len(dta[:,0]),len(dta[0,:]))).astype('datetime64[s]')
+    frmttimedata = np.full((len(dta[:,0]),len(dta[0,:])),"NaT").astype('datetime64[s]')
     
     for i1 in range(len(dta[:,0])):
         mattimedata[i1] = dict()

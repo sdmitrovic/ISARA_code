@@ -22,7 +22,7 @@ def RunISARA():
     182
     """   
     path_optical_dataset='./optical_dataset/'
-    path_mopsmap_executable=r'../mopsmap'
+    path_mopsmap_executable=r'./mopsmap'
 
     sys.path.insert(0, os.path.abspath("../"))  
 
@@ -73,7 +73,7 @@ def RunISARA():
 
     size_equ = 'cs' 
 
-    RRIp = np.array([1.53])#np.arange(1.45,2.01,0.01).reshape(-1)
+    RRIp = np.arange(1.52,1.54,0.01).reshape(-1)#np.array([1.53])#np.arange(1.45,2.01,0.01).reshape(-1)
     IRIp = np.hstack((0,10**(-7),10**(-6),10**(-5),10**(-4),np.arange(0.001,0.0801,0.001).reshape(-1)))#np.hstack((0,10**(-7),10**(-6),10**(-5),10**(-4),np.arange(0.001,0.101,0.001).reshape(-1),np.arange(0.1,0.96,0.01).reshape(-1)))#np.arange(0.0,0.08,0.001).reshape(-1)
     CRI = np.empty((len(IRIp)*len(RRIp), 2))
     io = 0
@@ -105,7 +105,7 @@ def RunISARA():
     def handle_line(sd1, sd2, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
                         measured_coef_amb, measured_ext_coef_amb, measured_ssa_amb, measured_fRH,
                         wvl, size_equ, dpg1, dpg2, CRI, nonabs_fraction, shape, rho_dry,
-                        RH_sp, kappa, num_theta, RH_amb, rho_amb,optical_dataset,path_mopsmap_executable):
+                        RH_sp, kappa, num_theta, RH_amb, rho_amb,path_optical_dataset,path_mopsmap_executable):
                     
         # So this code may look a bit funky, but we are doing what is called currying. This is simply the idea of returning a function inside of a function. It may look weird doing this, but this is actually required so that each worker has the necessary data. What ends up happening is each worker is passed a full copy of all the data contained within this function, so it has to know what data needs to be copied. Anyhow, the inner `curry` function is what is actually being called for each iteration of the for loop.
         def curry(i1):  
@@ -148,7 +148,7 @@ def RunISARA():
                 Dpg2 = dpg2[dpflg2]
                 dndlogdp2 = dndlogdp2[dpflg2]
                 Results = ISARA.Retr_CRI(wvl, meas_coef[0:3], meas_coef[3:], dndlogdp1, dndlogdp2, Dpg1, Dpg2, CRI, size_equ, size_equ, 
-                    nonabs_fraction, nonabs_fraction, shape, shape, rho_dry, rho_dry, num_theta, optical_dataset, path_mopsmap_executable)    
+                    nonabs_fraction, nonabs_fraction, shape, shape, rho_dry, rho_dry, num_theta, path_optical_dataset, path_mopsmap_executable)    
 
                 if Results["RRIdry"] is not None:
                     RRI_dry = Results["RRIdry"]
@@ -163,11 +163,11 @@ def RunISARA():
                     meas_ssa_dry = measured_ssa_dry[:, i1]  
 
                     #if (RH_amb[i1].astype(str) != 'nan') and (measured_coef_amb[i1].astype(str) != 'nan'):
-                    if measured_coef_amb[i1].astype(str) != 'nan':
+                    if np.logical_not(np.isnan(measured_coef_amb[i1])):
                         meas_coef = np.multiply(measured_coef_amb[i1], pow(10, -6))
                         Results = ISARA.Retr_kappa(wvl, meas_coef, dndlogdp1, dndlogdp2, Dpg1, Dpg2, 80, kappa, CRI_dry, CRI_dry,
                             size_equ, size_equ, nonabs_fraction, nonabs_fraction, shape, shape, rho_amb, rho_amb, num_theta,
-                            optical_dataset, path_mopsmap_executable)
+                            path_optical_dataset, path_mopsmap_executable)
                         if Results["Kappa"] is not None:
                             Kappa = Results["Kappa"]
                             CalCoef_amb = Results["Cal_coef"]
@@ -252,7 +252,7 @@ def RunISARA():
                 handle_line(sd1, sd2, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
                             measured_coef_amb, measured_ext_coef_amb, measured_ssa_amb, measured_fRH,
                             wvl, size_equ, dpg1, dpg2, CRI, nonabs_fraction, shape, rho_dry,
-                            RH_sp, kappa, num_theta, RH_amb, rho_amb, optical_dataset, path_mopsmap_executable),
+                            RH_sp, kappa, num_theta, RH_amb, rho_amb, path_optical_dataset, path_mopsmap_executable),
                 range(L1),
             )
             # Now that the data has been fetched, we have to join together all the results into aggregated arrays. The `enumerate` function simply loops through the elements in the array and attaches the associated array index to it.
