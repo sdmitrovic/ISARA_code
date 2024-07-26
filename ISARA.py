@@ -255,9 +255,9 @@ def Retr_kappa(wvl,
       results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,kappa,num_theta,optical_dataset,path_mopsmap_executable)
       scat_coef = results['ssa']*results['ext_coeff']
       abs_coef = results['ext_coeff']-results['ssa']*results['ext_coeff']
-      Cdif = (measured_wet_sca_coef-scat_coef[3])/measured_wet_sca_coef
-      a = ((Cdif)<0.01).astype('int')
-      if np.sum(a)==1:
+      Cdif = abs(measured_wet_sca_coef-scat_coef[3])/measured_wet_sca_coef
+      #a = ((Cdif)<0.01).astype('int')
+      if Cdif<0.01:
         Results["Kappa"] = Kappa[i1]
         Results["Cal_coef"] = scat_coef
         Results["Cal_SSA"] = results['ssa']
