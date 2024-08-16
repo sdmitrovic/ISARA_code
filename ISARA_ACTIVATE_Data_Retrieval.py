@@ -27,7 +27,7 @@ def RunISARA():
     sys.path.insert(0, os.path.abspath("../"))  
 
     # Number of cores you want to use
-    number_of_cores = 16    
+    number_of_cores = 32    
 
     # This should be at the start of the code to minimize the fork size
     pool = ProcessPool(ncpus=number_of_cores)   
@@ -82,7 +82,7 @@ def RunISARA():
             CRI[io, :] = [RRIp[i2], IRIp[i1]]
             io += 1 
 
-    kappa = np.arange(0.0, 1.40, 0.01).reshape(-1)  
+    kappa = np.arange(0.0, 1.40, 0.001).reshape(-1)  
 
     # set the non-absorbing fraction of the aerosol SD
     nonabs_fraction = 0 

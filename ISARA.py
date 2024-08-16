@@ -243,13 +243,12 @@ def Retr_kappa(wvl,
     gf = np.power((1+Kappa[i1]*RH/(100-RH)),1/3)#D/Ddry = (1+kappa*RH/(100-RH))**(1/3)
     D_1 = np.squeeze(np.multiply(gf,dpg1))
     D_2 = np.squeeze(np.multiply(gf,dpg2))
-    #IRIf = (CRI[0]+((gf**3)-1)*IRIw)/(gf**3)
     dpg[1] = D_1
     RRI[1] = (CRI1[0]+((gf**3)-1)*RRIw)/(gf**3)
-    IRI[1] = CRI1[1]
+    IRI[1] = (CRI1[1]+((gf**3)-1)*IRIw)/(gf**3)#CRI1[1]
     dpg[2] = D_2
     RRI[2] = (CRI2[0]+((gf**3)-1)*RRIw)/(gf**3)
-    IRI[2] = CRI2[1]
+    IRI[2] = (CRI2[1]+((gf**3)-1)*IRIw)/(gf**3)
 
     if stop_indx == 0:
       results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,kappa,num_theta,optical_dataset,path_mopsmap_executable)
