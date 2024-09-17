@@ -188,13 +188,13 @@ def RunISARA():
 
         return curry    
     
-
-    IFN = [f for f in os.listdir(r'./misc/ACTIVATE/FalconSMPS/') if f.endswith('.ict')]
+    DN = input("Enter directory name with merged in-situ data\ne.g., ACTIVATE/FalconSMPS:\n")    
+    IFN = [f for f in os.listdir(f'./misc/{DN}/') if f.endswith('.ict')]
     for input_filename in IFN:#[156:]:
         print(input_filename)
         # import the .ict data into a dictonary
         (output_dict, time, date, alt, lat, lon, sd1, sd2, RH_amb, RH_sp, Sc,
-         Abs, Ext, SSA, fRH) = grab_ICT_Data(f'./misc/ACTIVATE/FalconSMPS/{input_filename}')
+         Abs, Ext, SSA, fRH) = grab_ICT_Data(f'./misc/{DN}/{input_filename}')
         if RH_amb.size > 1:
             print(RH_amb)
             #RH_amb[RH_amb > 99] = 99    
