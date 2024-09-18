@@ -178,6 +178,7 @@ def RunISARA():
                     Nonabs_fraction, Shape, Rho_dry, num_theta, path_optical_dataset, path_mopsmap_executable)    
 
                 if Results["RRIdry"] is not None:
+                    print(Results["RRIdry"])
                     RRI_dry = Results["RRIdry"]
                     IRI_dry = Results["IRIdry"]
                     CRI_dry = np.array([RRI_dry,IRI_dry])
@@ -197,6 +198,7 @@ def RunISARA():
                             path_optical_dataset, path_mopsmap_executable)
                         if Results["Kappa"] is not None:
                             Kappa = Results["Kappa"]
+                            print(Results["Kappa"])
                             CalCoef_amb = Results["Cal_coef"]
                             CalExtCoef_amb = Results["Cal_ext_coef"]
                             CalSSA_amb = Results["Cal_SSA"]
