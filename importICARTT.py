@@ -26,7 +26,7 @@ def imp(filename, num_time_columns):
     DATE = DATEinfo[0:3] # save date to add to file
 
     Fv = g[11]  # locate line with fill values, wich are located on line 11 of .ict file, to replace with 'nan'
-    fv = Fv.split(",") # create array of fill values
+    fv = np.array(Fv.split(",")).astype(float) # create array of fill values
     varend = int(g[9]) # locate line with number of variables, which is located on line 9 of .ict file
 
     full_var_titles = ["" for x in range(np.add(varend,1))] # create empty string array for full variable titles
@@ -51,30 +51,27 @@ def imp(filename, num_time_columns):
     # create empty string arrays for final variable names, units, and extra info
     var_names = ["" for x in range(len(full_var_titles))]
     var_units = ["" for x in range(len(full_var_titles))]
-    
+
     # iteratively fill string arrays with final variable names, units, and extra info
     for i1 in np.arange(0,len(full_var_titles)).reshape(-1):
         fvt = full_var_titles[i1]
-        FVT = fvt.split(",")
+        FVT = np.array(fvt.split(","))
         var_names[i1] = FVT[0]
         var_units[i1] = FVT[1]
-
+        
     # create data arraw with length of dataset and width of number of variables       
     data = np.zeros((len(rawdata),len(full_var_titles)))
 
     # iteratively fill data array with data and replace fv values with NAN
     for i1 in np.arange(0,len(rawdata)).reshape(-1):
         processdata1 = rawdata[i1]
-        processdata2 = processdata1.split(",")
-        if processdata2 == ['\n']:
-            data[i1,:] =  np.full((1,len(full_var_titles)), np.nan)
-        else:
-            for i2 in np.arange(0,len(processdata2)).reshape(-1):
-                if not processdata2[i2]:
-                    processdata2[i2] = np.nan
-                elif processdata2[i2] == fv[np.add(i2,- 1)]:
-                    processdata2[i2] = np.nan
-            data[i1,:] = processdata2
+        processdata2 = np.array(processdata1.split(",")).astype(float)
+        for i2 in np.arange(len(processdata2)-1):
+            if not processdata2[i2]:
+                processdata2[i2] = np.nan
+            elif processdata2[i2] == fv[i2]:
+                processdata2[i2] = np.nan
+        data[i1,:] = processdata2
     
     # creat empty dictionary
     output_dictionary = {}

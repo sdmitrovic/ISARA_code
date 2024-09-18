@@ -45,7 +45,7 @@ def Model(wvl,size_equ,dndlogdp,dpg,RRI,IRI,nonabs_fraction,shape,density,RH,kap
   """  
 
   filename = f'tmp_mopsmap_{time.time()}_{np.random.randn()}_{np.random.randn()}_{np.random.randn()}'
-  
+  dndlogdp_ary_filename =f'{filename}_dndp'
   # create a input file for the Fortran code and a wavelength file
   mopsmap_input_file = open(f'{filename}.inp', 'w')
 
@@ -53,7 +53,7 @@ def Model(wvl,size_equ,dndlogdp,dpg,RRI,IRI,nonabs_fraction,shape,density,RH,kap
     mopsmap_wvl_file = open('tmp_mopsmap.wvl', 'w')
     # write wavelength file
     wvl = np.array(wvl,ndmin = 1)
-    for i_wvl in range(wvl.shape[0]):
+    for i_wvl in np.arange(len(wvl)):
       mopsmap_wvl_file.write('%10.8f \n'%wvl[i_wvl])
     mopsmap_wvl_file.close()
 
@@ -62,17 +62,28 @@ def Model(wvl,size_equ,dndlogdp,dpg,RRI,IRI,nonabs_fraction,shape,density,RH,kap
   for key in dndlogdp:
     dndlogdp_ary = np.array(dndlogdp[key],ndmin = 1)  
     dpg_ary = np.array(dpg[key],ndmin = 1)
+    dndlogdp_ary_file = open(dndlogdp_ary_filename, 'w')
+    # write wavelength file
+    wvl = np.array(wvl,ndmin = 1)
+    for i in np.arange(dndlogdp_ary.shape[0]):
+      if i < dndlogdp_ary.shape[0]:
+        dndlogdp_ary_file.write('%10.4f %i\n'%(dpg_ary[i],dndlogdp_ary[i]))
+      else:
+        dndlogdp_ary_file.write('%10.4f %i'%(dpg_ary[i],dndlogdp_ary[i]))
+    dndlogdp_ary_file.close()
+
     if dndlogdp_ary.shape != dpg_ary.shape:
       print("shapes of n and dpg do not agree")
       raise SystemExit()  
     mopsmap_input_file.write("mode %d wavelength file tmp_mopsmap.wvl \n"%ikey) # write wvls
     mopsmap_input_file.write('mode %d size_equ %s\n'%(ikey,size_equ[key])) # write size_equ
-    dpg_dnlogdp = [dpg_ary,dndlogdp_ary]
-    dpg_dnlogdp = np.reshape(dpg_dnlogdp, 2*dpg_ary.shape[0], order='F')
-    listToStr = ' '.join(["%0.4E"%elem for elem in dpg_dnlogdp])
-    mopsmap_input_file.write('mode %d size distr_list dndlogr %s\n'%(ikey,listToStr))
+    #dpg_dnlogdp = [dpg_ary,dndlogdp_ary]
+    #dpg_dnlogdp = np.reshape(dpg_dnlogdp, 2*dpg_ary.shape[0], order='F')
+    #listToStr = ' '.join(["%0.4E"%elem for elem in dpg_dnlogdp])
+    #mopsmap_input_file.write('mode %d size distr_list dndlogr %s\n'%(ikey,listToStr))
+    mopsmap_input_file.write('mode %d size distr_file dndlogr %s\n'%(ikey,dndlogdp_ary_filename))
     mopsmap_input_file.write('mode %d density %f\n'%(ikey,density[key]))
-    mopsmap_input_file.write('mode %d kappa %f\n'%(ikey,kappa[key]))
+    mopsmap_input_file.write('mode %d kappa %f\n'%(ikey,kappa))
     mopsmap_input_file.write('mode %d refrac %0.4f %0.4f\n'%(ikey,RRI[key],IRI[key]))
     mopsmap_input_file.write('mode %d refrac nonabs_fraction %f\n'%(ikey,nonabs_fraction[key]))
     mopsmap_input_file.write('mode %d shape %s\n'%(ikey,shape[key]))
