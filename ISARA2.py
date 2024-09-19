@@ -88,7 +88,7 @@ def Retr_CRI(wvl,
     for imode in sd:
       RRI_d[imode] = rri
       IRI_d[imode] = iri
-    results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,rri,iri,nonabs_fraction,shape,rho,0,0,num_theta,optical_dataset,path_mopsmap_executable) 
+    results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI_d,IRI_d,nonabs_fraction,shape,rho,0,0,num_theta,optical_dataset,path_mopsmap_executable) 
     scat_coef = results['ssa'][[0,3,5]]*results['ext_coeff'][[0,3,5]]
     abs_coef = results['ext_coeff'][[1,2,4]]-results['ssa'][[1,2,4]]*results['ext_coeff'][[1,2,4]]   
     Cdif1 = abs(measured_sca_coef-scat_coef)/measured_sca_coef
@@ -157,7 +157,7 @@ def Retr_kappa(wvl,
   L1 = len(kappa_p)
   L3 = len(wvl) 
   Results = dict()
-  Results["kappa_p"] = None
+  Results["Kappa"] = None
   Results["Cal_coef"] = None
   Results["Cal_SSA"] = None
   Results["Cal_ext_coef"] = None
@@ -172,11 +172,11 @@ def Retr_kappa(wvl,
     IRI_w = {}
     for imode in sd:
       gf = np.power((1+kappa_p[i1]*RH/(100-RH)),1/3)
-      dpg_w[imode] = np.squeeze(np.multiply(gf,dpg1))
-      RRI_w[imode] = (CRI_d[imode][0]+((gf**3)-1)*RRIw)/(gf**3)
-      IRI_w[imode] = (CRI_d[imode][1]+((gf**3)-1)*IRIw)/(gf**3)#CRI1[1]
+      dpg_w[imode] = np.squeeze(np.multiply(gf,dpg[imode]))
+      RRI_w[imode] = (CRI_d[0]+((gf**3)-1)*RRIw)/(gf**3)
+      IRI_w[imode] = (CRI_d[1]+((gf**3)-1)*IRIw)/(gf**3)#CRI1[1]
     if stop_indx == 0:
-      results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,0,num_theta,optical_dataset,path_mopsmap_executable)
+      results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI_w,IRI_w,nonabs_fraction,shape,rho,0,0,num_theta,optical_dataset,path_mopsmap_executable)
       scat_coef = results['ssa']*results['ext_coeff']
       abs_coef = results['ext_coeff']-results['ssa']*results['ext_coeff']
       Cdif = abs(measured_wet_sca_coef-scat_coef[3])/measured_wet_sca_coef

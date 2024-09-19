@@ -99,9 +99,10 @@ def RunISARA():
 
     resolution = 60 
 
-    dpg2 = load_sizebins.Load('LAS_bin_sizes.csv')*pow(10,-3) 
-    dpg1 = load_sizebins.Load('SMPS_bin_sizes.csv')*pow(10,-3)  
-
+    dpData = load_sizebins.Load('LAS_bin_sizes.csv')
+    dpg2 = dpData["Mid Points"]*pow(10,-3) 
+    dpData = load_sizebins.Load('SMPS_bin_sizes.csv')  
+    dpg1 = dpData["Mid Points"]*pow(10,-3) 
     def handle_line(sd1, sd2, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
                         measured_coef_amb, measured_ext_coef_amb, measured_ssa_amb, measured_fRH,
                         wvl, size_equ, dpg1, dpg2, CRI, nonabs_fraction, shape, rho_dry,

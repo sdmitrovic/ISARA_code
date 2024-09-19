@@ -66,7 +66,8 @@ def RunISARA():
         Abs = np.array([v for k, v in data.items() if k.startswith('Abs')])
         Ext = np.array([v for k, v in data.items() if k.startswith('Ext')])
         SSA = np.array([v for k, v in data.items() if (k.startswith('SSA')&k.__contains__('dry'))])
-        SSAa = np.array([v for k, v in data.items() if (k.startswith('SSA')&k.__contains__('amb'))])
+        SSAa =np.array(grab_keydata('SSA_amb_550nm_ZIEMBA'))
+        print(SSAa.size)
         fRH = np.array(grab_keydata('fRH'))
         return (data, time, date, alt, lat, lon, sd, RH_amb, RH_sp, Sc, Abs, Ext, SSA, SSAa, fRH)   
     
@@ -178,7 +179,7 @@ def RunISARA():
                     Nonabs_fraction, Shape, Rho_dry, num_theta, path_optical_dataset, path_mopsmap_executable)    
 
                 if Results["RRIdry"] is not None:
-                    print(Results["RRIdry"])
+                    #print(Results["RRIdry"])
                     RRI_dry = Results["RRIdry"]
                     IRI_dry = Results["IRIdry"]
                     CRI_dry = np.array([RRI_dry,IRI_dry])
@@ -193,12 +194,11 @@ def RunISARA():
                     #if (RH_amb[i1].astype(str) != 'nan') and (measured_coef_amb[i1].astype(str) != 'nan'):
                     if np.logical_not(np.isnan(measured_coef_amb[i1])):
                         meas_coef = np.multiply(measured_coef_amb[i1], pow(10, -6))
-                        Results = ISARA2.Retr_kappa(wvl, meas_coef, Dndlogdp, Dpg, 80, kappa_p, CRI_dry, CRI_dry,
+                        Results = ISARA2.Retr_kappa(wvl, meas_coef, Dndlogdp, Dpg, 80, kappa_p, CRI_dry,
                             Size_equ, Nonabs_fraction, Shape, Rho_amb, num_theta,
                             path_optical_dataset, path_mopsmap_executable)
                         if Results["Kappa"] is not None:
                             Kappa = Results["Kappa"]
-                            print(Results["Kappa"])
                             CalCoef_amb = Results["Cal_coef"]
                             CalExtCoef_amb = Results["Cal_ext_coef"]
                             CalSSA_amb = Results["Cal_SSA"]
@@ -245,11 +245,11 @@ def RunISARA():
             measured_coef_dry = np.vstack((Sc, Abs))
             measured_ext_coef_dry = Ext[1, :]
             measured_ssa_dry = SSA
-            measured_coef_amb = measured_coef_dry*fRH #Sc[0, :]
+            measured_coef_amb = Sc[0,:]*fRH #Sc[0, :]
             measured_ext_coef_amb = Ext[0, :]
             measured_ssa_amb = SSAa
             measured_fRH = fRH      
-
+            #print(measured_coef_amb[np.where(np.logical_not(np.isnan(measured_coef_amb)))])
             Lwvl = len(wvl)
             Lwvl_s = int(Lwvl/2)
             L1 = RH_amb.size
