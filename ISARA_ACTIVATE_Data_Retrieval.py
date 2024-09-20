@@ -49,6 +49,7 @@ def RunISARA():
         frmttime = np.array(grab_keydata('fmtdatetime_Start'))
         print(len(frmttime))
         date = grab_keydata('date')
+        #print(date)
         alt = np.array(grab_keydata('gpsALT'))
         lat = np.array(grab_keydata('Latitude'))
         print(len(lat))
@@ -103,6 +104,7 @@ def RunISARA():
     dpg2 = dpData["Mid Points"]*pow(10,-3) 
     dpData = load_sizebins.Load('SMPS_bin_sizes.csv')  
     dpg1 = dpData["Mid Points"]*pow(10,-3) 
+
     def handle_line(sd1, sd2, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
                         measured_coef_amb, measured_ext_coef_amb, measured_ssa_amb, measured_fRH,
                         wvl, size_equ, dpg1, dpg2, CRI, nonabs_fraction, shape, rho_dry,
@@ -189,17 +191,20 @@ def RunISARA():
 
         return curry    
     
-    DN = input("Enter directory name with merged in-situ data\ne.g., ACTIVATE/FalconSMPS:\n")    
-    IFN = [f for f in os.listdir(f'./misc/{DN}/') if f.endswith('.ict')]
+    #DN = input("Enter directory name with merged in-situ data\ne.g., ACTIVATE/FalconSMPS:\n")    
+    IFN = [f for f in os.listdir(r'./misc/ACTIVATE/InSituData/') if f.endswith('.ict')]
     for input_filename in IFN:#[156:]:
         print(input_filename)
         # import the .ict data into a dictonary
         (output_dict, time, date, alt, lat, lon, sd1, sd2, RH_amb, RH_sp, Sc,
-         Abs, Ext, SSA, fRH) = grab_ICT_Data(f'./misc/{DN}/{input_filename}')
+         Abs, Ext, SSA, fRH) = grab_ICT_Data(f'./misc/ACTIVATE/InSituData/{input_filename}')
         if RH_amb.size > 1:
-            print(RH_amb)
+            #print(RH_amb)
             #RH_amb[RH_amb > 99] = 99    
 
+            if date[0]!='2020':
+                sd2 = sd2[dpg2<=1000]
+                dpg2 = dpg2[dpg2<=1000]
             measured_coef_dry = np.vstack((Sc[1:, :], Abs))
             measured_ext_coef_dry = Ext[1, :]
             measured_ssa_dry = SSA[0:3, :]

@@ -88,14 +88,14 @@ def Retr_CRI(wvl,
   nonabs_fraction[1] = nonabs_fraction1
   rho[1] = rho1
   shape[1] = shape1
-  kappa[1] = 0
+  #kappa[1] = 0
   size_equ[2] = size_equ2
   sd[2] = sd2
   dpg[2] = dpg2
   nonabs_fraction[2] = nonabs_fraction2
   rho[2] = rho2
   shape[2] = shape2
-  kappa[2] = 0
+  #kappa[2] = 0
 
   for i1 in range(L1):
 
@@ -105,7 +105,7 @@ def Retr_CRI(wvl,
     RRI[2] = CRI[i1,0]
     IRI[2] = CRI[i1,1]
 
-    results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,kappa,num_theta,optical_dataset,path_mopsmap_executable)
+    results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,0,num_theta,optical_dataset,path_mopsmap_executable)
     scat_coef = results['ssa'][[0,3,5]]*results['ext_coeff'][[0,3,5]]
     abs_coef = results['ext_coeff'][[1,2,4]]-results['ssa'][[1,2,4]]*results['ext_coeff'][[1,2,4]]   
     Cdif1 = abs(measured_sca_coef-scat_coef)/measured_sca_coef
@@ -125,7 +125,7 @@ def Retr_CRI(wvl,
     IRI[1] = np.mean(iri[flgs])
     RRI[2] = np.mean(rri[flgs])
     IRI[2] = np.mean(iri[flgs])    
-    results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,kappa,num_theta,optical_dataset,path_mopsmap_executable) 
+    results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,0,num_theta,optical_dataset,path_mopsmap_executable) 
 
     scat_coef = results['ssa'][[0,3,5]]*results['ext_coeff'][[0,3,5]]
     abs_coef = results['ext_coeff'][[1,2,4]]-results['ssa'][[1,2,4]]*results['ext_coeff'][[1,2,4]]   
@@ -251,7 +251,7 @@ def Retr_kappa(wvl,
     IRI[2] = (CRI2[1]+((gf**3)-1)*IRIw)/(gf**3)
 
     if stop_indx == 0:
-      results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,kappa,num_theta,optical_dataset,path_mopsmap_executable)
+      results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI,IRI,nonabs_fraction,shape,rho,0,0,num_theta,optical_dataset,path_mopsmap_executable)
       scat_coef = results['ssa']*results['ext_coeff']
       abs_coef = results['ext_coeff']-results['ssa']*results['ext_coeff']
       Cdif = abs(measured_wet_sca_coef-scat_coef[3])/measured_wet_sca_coef
