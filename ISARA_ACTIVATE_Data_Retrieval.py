@@ -139,12 +139,13 @@ def RunISARA():
             meas_ext_coef_amb = None
             meas_ssa_amb = None
             meas_fRH = None
-            
+            attempt_count = None
             # You will notice that in the code, instead of doing things like CRI_dry[:, i1] = ..., we are instead just assining the value for this row instead and then they will be merged later
             dpflg1 = np.where(np.logical_not(np.isnan(dndlogdp1)))[0]
             dpflg2 = np.where(np.logical_not(np.isnan(dndlogdp2)))[0]
-            measflg = np.where(np.logical_not(np.isnan(meas_coef)))[0]
+            measflg = np.where((np.logical_not(np.isnan(meas_coef))&(meas_coef>0)))[0]
             if (len(dndlogdp1[dpflg1])>3) & (len(dndlogdp2[dpflg2])>3) &(len(meas_coef[measflg]) == 6):
+                attempt_count = 1
                 Dpg1 = dpg1[dpflg1]
                 dndlogdp1 = dndlogdp1[dpflg1]  
 
@@ -187,13 +188,13 @@ def RunISARA():
                                     CalfRH[i3] = CalCoef_amb[i3]/(CalExtCoef_dry[i3]*CalSSA_dry[i3])
             return (RRI_dry, IRI_dry, CalScatCoef_dry, CalAbsCoef_dry, CalExtCoef_dry, CalSSA_dry, meas_coef_dry, 
                     meas_ext_coef_dry, meas_ssa_dry, Kappa, CalCoef_amb, CalExtCoef_amb, CalSSA_amb, CalfRH,
-                    meas_coef_amb, meas_ext_coef_amb, meas_ssa_amb, meas_fRH)#, results)    
+                    meas_coef_amb, meas_ext_coef_amb, meas_ssa_amb, meas_fRH, attempt_count)#, results)    
 
         return curry    
     
     #DN = input("Enter directory name with merged in-situ data\ne.g., ACTIVATE/FalconSMPS:\n")    
     IFN = [f for f in os.listdir(r'./misc/ACTIVATE/InSituData/') if f.endswith('.ict')]
-    for input_filename in IFN:#[156:]:
+    for input_filename in IFN[41:]:#:#
         print(input_filename)
         # import the .ict data into a dictonary
         (output_dict, time, date, alt, lat, lon, sd1, sd2, RH_amb, RH_sp, Sc,
@@ -203,8 +204,11 @@ def RunISARA():
             #RH_amb[RH_amb > 99] = 99    
 
             if date[0]!='2020':
-                sd2 = sd2[dpg2<=1000]
-                dpg2 = dpg2[dpg2<=1000]
+                Sd2 = sd2[dpg2<=1,:]
+                Dpg2 = dpg2[dpg2<=1]
+            else:
+                Sd2 = sd2
+                Dpg2 = dpg2            
             measured_coef_dry = np.vstack((Sc[1:, :], Abs))
             measured_ext_coef_dry = Ext[1, :]
             measured_ssa_dry = SSA[0:3, :]
@@ -216,48 +220,31 @@ def RunISARA():
             Lwvl = len(wvl)
             Lwvl_s = int(Lwvl/2)
             L1 = len(sd1[0, :])
-            RRI_dry = np.empty((1, L1))
-            RRI_dry[:]=np.nan
-            IRI_dry = np.empty((1, L1))
-            IRI_dry[:]=np.nan
-            CalScatCoef_dry = np.empty((Lwvl_s, L1))
-            CalScatCoef_dry[:]=np.nan
-            CalAbsCoef_dry = np.empty((Lwvl_s, L1))
-            CalAbsCoef_dry[:]=np.nan
-            CalExtCoef_dry = np.empty((Lwvl, L1))
-            CalExtCoef_dry[:]=np.nan
-            CalSSA_dry = np.empty((Lwvl, L1))
-            CalSSA_dry[:]=np.nan
-            meas_coef_dry = np.empty((Lwvl, L1))
-            meas_coef_dry[:]=np.nan
-            meas_coef_amb = np.empty((1, L1))
-            meas_coef_amb[:]=np.nan
-            meas_ext_coef_dry = np.empty((1, L1))
-            meas_ext_coef_dry[:]=np.nan
-            meas_ssa_dry = np.empty((3, L1))
-            meas_ssa_dry[:]=np.nan
-            Kappa = np.empty((1,L1))
-            Kappa[:]=np.nan
-            CalCoef_amb = np.empty((Lwvl, L1))
-            CalCoef_amb[:]=np.nan
-            CalfRH = np.empty((Lwvl, L1))
-            CalfRH[:]=np.nan
-            CalExtCoef_amb = np.empty((Lwvl, L1))
-            CalExtCoef_amb[:]=np.nan
-            CalSSA_amb = np.empty((Lwvl, L1))
-            CalSSA_amb[:]=np.nan
-            meas_ext_coef_amb = np.empty((1, L1))
-            meas_ext_coef_amb[:]=np.nan
-            meas_ssa_amb = np.empty((1, L1)) 
-            meas_ssa_amb[:]=np.nan
-            meas_fRH = np.empty((1, L1))  
-            meas_fRH[:]=np.nan
+            RRI_dry = np.full((1, L1),np.nan)
+            IRI_dry = np.full((1, L1),np.nan)
+            CalScatCoef_dry = np.full((Lwvl_s, L1),np.nan)
+            CalAbsCoef_dry = np.full((Lwvl_s, L1),np.nan)
+            CalExtCoef_dry = np.full((Lwvl, L1),np.nan)
+            CalSSA_dry = np.full((Lwvl, L1),np.nan)
+            meas_coef_dry = np.full((Lwvl, L1),np.nan)
+            meas_coef_amb = np.full((1, L1),np.nan)
+            meas_ext_coef_dry = np.full((1, L1),np.nan)
+            meas_ssa_dry = np.full((3, L1),np.nan)
+            Kappa = np.full((1,L1),np.nan)
+            CalCoef_amb = np.full((Lwvl, L1),np.nan)
+            CalfRH = np.full((Lwvl, L1),np.nan)
+            CalExtCoef_amb = np.full((Lwvl, L1),np.nan)
+            CalSSA_amb = np.full((Lwvl, L1),np.nan)
+            meas_ext_coef_amb = np.full((1, L1),np.nan)
+            meas_ssa_amb = np.full((1, L1),np.nan)
+            meas_fRH = np.full((1, L1),np.nan)
+            atmpt_cnt = np.zeros((1, L1))
             # Loop through each of the rows here using multiprocessing. This will split the rows across multiple different cores. Each row will be its own index in `line_data` with a tuple full of information. So, for instance, line_data[0] will contain (CRI_dry, CalCoef_dry, meas_coef_dry, Kappa, CalCoef_amb, meas_coef_amb, results) for the first line of data
             line_data = pool.map(
                 # This is a pain, I know, but all the data has to be cloned and accessible within each worker
-                handle_line(sd1, sd2, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
+                handle_line(sd1, Sd2, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
                             measured_coef_amb, measured_ext_coef_amb, measured_ssa_amb, measured_fRH,
-                            wvl, size_equ, dpg1, dpg2, CRI, nonabs_fraction, shape, rho_dry,
+                            wvl, size_equ, dpg1, Dpg2, CRI, nonabs_fraction, shape, rho_dry,
                             RH_sp, kappa, num_theta, RH_amb, rho_amb, path_optical_dataset, path_mopsmap_executable),
                 range(L1),
             )
@@ -266,7 +253,7 @@ def RunISARA():
                 (RRI_dry_line, IRI_dry_line, CalScatCoef_dry_line, CalAbsCoef_dry_line, CalExtCoef_dry_line, 
                     CalSSA_dry_line, meas_coef_dry_line, meas_ext_coef_dry_line, meas_ssa_dry_line, Kappa_line, 
                     CalCoef_amb_line, CalExtCoef_amb_line, CalSSA_amb_line, CalfRH_line, meas_coef_amb_line,
-                    meas_ext_coef_amb_line, meas_ssa_amb_line, meas_fRH_line) = line_data#, results_line) = line_data       
+                    meas_ext_coef_amb_line, meas_ssa_amb_line, meas_fRH_line, attempt_count_line) = line_data#, results_line) = line_data       
 
                 # The general trend for merging the values is pretty simple. If the value is not None, that means that it has a value set because it was reached conditionally. Therefore, if it does have a value, we will just update that part of the array. Now, I know you're probably thinking "why are we doing all this work again." Well, true, it is repeated work, but this will allow for much faster times overall (well, that's the hope anyhow).
                 def merge_in(line_val, merged_vals):
@@ -290,7 +277,8 @@ def RunISARA():
                 merge_in(meas_ext_coef_amb_line, meas_ext_coef_amb)
                 merge_in(meas_ssa_amb_line, meas_ssa_amb)
                 merge_in(meas_fRH_line, meas_fRH)
-                
+                merge_in(attempt_count_line, atmpt_cnt)
+
             # From here on out, everything can continue as normal
             output_dict['RRI_dry'] = RRI_dry
             output_dict['IRI_dry'] = IRI_dry

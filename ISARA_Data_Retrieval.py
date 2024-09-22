@@ -146,7 +146,7 @@ def RunISARA():
             meas_ext_coef_amb = None
             meas_ssa_amb = None
             meas_fRH = None
-            
+            attempt_count = None
             # You will notice that in the code, instead of doing things like CRI_dry[:, i1] = ..., we are instead just assining the value for this row instead and then they will be merged later
             dpflg = 0
             icount = 0
@@ -173,8 +173,9 @@ def RunISARA():
                     else:
                         Dpg[imode] = dpg[imode][modeflg]
 
-            measflg = np.where(np.logical_not(np.isnan(meas_coef)))[0]
+            measflg = np.where((np.logical_not(np.isnan(meas_coef))&(meas_coef>0)))[0]
             if (dpflg==icount) & (len(meas_coef[measflg]) == 6):
+                attempt_count = 1
                 Results = ISARA2.Retr_CRI(wvl, meas_coef[0:3], meas_coef[3:], Dndlogdp, Dpg, CRI_p, Size_equ, 
                     Nonabs_fraction, Shape, Rho_dry, num_theta, path_optical_dataset, path_mopsmap_executable)    
 
@@ -213,7 +214,7 @@ def RunISARA():
                                     CalfRH[i3] = CalCoef_amb[i3]/(CalExtCoef_dry[i3]*CalSSA_dry[i3])
             return (RRI_dry, IRI_dry, CalScatCoef_dry, CalAbsCoef_dry, CalExtCoef_dry, CalSSA_dry, meas_coef_dry, 
                     meas_ext_coef_dry, meas_ssa_dry, Kappa, CalCoef_amb, CalExtCoef_amb, CalSSA_amb, CalfRH,
-                    meas_coef_amb, meas_ext_coef_amb, meas_ssa_amb, meas_fRH)#, results)    
+                    meas_coef_amb, meas_ext_coef_amb, meas_ssa_amb, meas_fRH, attempt_count)#, results)    
 
         return curry    
     
@@ -271,7 +272,8 @@ def RunISARA():
             CalSSA_amb = np.full((Lwvl, L1),np.nan)
             meas_ext_coef_amb = np.full((1, L1),np.nan)
             meas_ssa_amb = np.full((1, L1),np.nan)
-            meas_fRH = np.full((1, L1),np.nan)          
+            meas_fRH = np.full((1, L1),np.nan) 
+            atmpt_cnt = np.zeros((1, L1))         
             # Loop through each of the rows here using multiprocessing. This will split the rows across multiple different cores. Each row will be its own index in `line_data` with a tuple full of information. So, for instance, line_data[0] will contain (CRI_dry, CalCoef_dry, meas_coef_dry, Kappa, CalCoef_amb, meas_coef_amb, results) for the first line of data
             line_data = pool.map(
                 # This is a pain, I know, but all the data has to be cloned and accessible within each worker
@@ -286,7 +288,7 @@ def RunISARA():
                 (RRI_dry_line, IRI_dry_line, CalScatCoef_dry_line, CalAbsCoef_dry_line, CalExtCoef_dry_line, 
                     CalSSA_dry_line, meas_coef_dry_line, meas_ext_coef_dry_line, meas_ssa_dry_line, Kappa_line, 
                     CalCoef_amb_line, CalExtCoef_amb_line, CalSSA_amb_line, CalfRH_line, meas_coef_amb_line,
-                    meas_ext_coef_amb_line, meas_ssa_amb_line, meas_fRH_line) = line_data#, results_line) = line_data       
+                    meas_ext_coef_amb_line, meas_ssa_amb_line, meas_fRH_line, attempt_count_line) = line_data#, results_line) = line_data       
 
                 # The general trend for merging the values is pretty simple. If the value is not None, that means that it has a value set because it was reached conditionally. Therefore, if it does have a value, we will just update that part of the array. Now, I know you're probably thinking "why are we doing all this work again." Well, true, it is repeated work, but this will allow for much faster times overall (well, that's the hope anyhow).
                 def merge_in(line_val, merged_vals):
@@ -310,11 +312,14 @@ def RunISARA():
                 merge_in(meas_ext_coef_amb_line, meas_ext_coef_amb)
                 merge_in(meas_ssa_amb_line, meas_ssa_amb)
                 merge_in(meas_fRH_line, meas_fRH)
+                merge_in(attempt_count_line, atmpt_cnt)
                 
             # From here on out, everything can continue as normal
             output_dict['RRI_dry'] = RRI_dry
             output_dict['IRI_dry'] = IRI_dry
-            output_dict['Kappa'] = Kappa        
+            output_dict['Kappa'] = Kappa     
+            output_dict['attempt_count'] = atmpt_cnt
+
             #print(Kappa)
             i0 = 0
             for i1 in [0,3,5]:
