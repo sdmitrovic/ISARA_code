@@ -32,11 +32,6 @@ def RunISARA():
     # This should be at the start of the code to minimize the fork size
     pool = ProcessPool(ncpus=number_of_cores)   
 
-    def pause():
-        programPause = input
-
-        ("Press the <ENTER> key to continue...")    
-
     def grab_ICT_Data(filename):
         data = importICARTT.imp(filename,2) 
 
@@ -283,6 +278,7 @@ def RunISARA():
             output_dict['RRI_dry'] = RRI_dry
             output_dict['IRI_dry'] = IRI_dry
             output_dict['Kappa'] = Kappa        
+            output_dict['attempt_count'] = atmpt_cnt
 
             i0 = 0
             for i1 in [0,3,5]:
