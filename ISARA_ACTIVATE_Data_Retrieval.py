@@ -134,13 +134,13 @@ def RunISARA():
             meas_ext_coef_amb = None
             meas_ssa_amb = None
             meas_fRH = None
-            attempt_count = None
+            attempt_count = np.zeros(2)
             # You will notice that in the code, instead of doing things like CRI_dry[:, i1] = ..., we are instead just assining the value for this row instead and then they will be merged later
             dpflg1 = np.where(np.logical_not(np.isnan(dndlogdp1)))[0]
             dpflg2 = np.where(np.logical_not(np.isnan(dndlogdp2)))[0]
-            measflg = np.where((np.logical_not(np.isnan(meas_coef))&(meas_coef>0)))[0]
+            measflg = np.where((np.logical_not(np.isnan(meas_coef))&(meas_coef>10**(-6))))[0]
             if (len(dndlogdp1[dpflg1])>3) & (len(dndlogdp2[dpflg2])>3) &(len(meas_coef[measflg]) == 6):
-                attempt_count = 1
+                attempt_count[0] = 1
                 Dpg1 = dpg1[dpflg1]
                 dndlogdp1 = dndlogdp1[dpflg1]  
 
@@ -163,6 +163,7 @@ def RunISARA():
 
                     #if (RH_amb[i1].astype(str) != 'nan') and (measured_coef_amb[i1].astype(str) != 'nan'):
                     if np.logical_not(np.isnan(measured_coef_amb[i1])):
+                        attempt_count[1] = 1
                         meas_coef = np.multiply(measured_coef_amb[i1], pow(10, -6))
                         Results = ISARA.Retr_kappa(wvl, meas_coef, dndlogdp1, dndlogdp2, Dpg1, Dpg2, 80, kappa, CRI_dry, CRI_dry,
                             size_equ, size_equ, nonabs_fraction, nonabs_fraction, shape, shape, rho_amb, rho_amb, num_theta,
@@ -189,7 +190,7 @@ def RunISARA():
     
     #DN = input("Enter directory name with merged in-situ data\ne.g., ACTIVATE/FalconSMPS:\n")    
     IFN = [f for f in os.listdir(r'./misc/ACTIVATE/InSituData/') if f.endswith('.ict')]
-    for input_filename in IFN[41:]:#:#
+    for input_filename in IFN:#[26:]:#
         print(input_filename)
         # import the .ict data into a dictonary
         (output_dict, time, date, alt, lat, lon, sd1, sd2, RH_amb, RH_sp, Sc,
@@ -233,7 +234,7 @@ def RunISARA():
             meas_ext_coef_amb = np.full((1, L1),np.nan)
             meas_ssa_amb = np.full((1, L1),np.nan)
             meas_fRH = np.full((1, L1),np.nan)
-            atmpt_cnt = np.zeros((1, L1))
+            atmpt_cnt = np.zeros((2, L1))
             # Loop through each of the rows here using multiprocessing. This will split the rows across multiple different cores. Each row will be its own index in `line_data` with a tuple full of information. So, for instance, line_data[0] will contain (CRI_dry, CalCoef_dry, meas_coef_dry, Kappa, CalCoef_amb, meas_coef_amb, results) for the first line of data
             line_data = pool.map(
                 # This is a pain, I know, but all the data has to be cloned and accessible within each worker
@@ -278,7 +279,8 @@ def RunISARA():
             output_dict['RRI_dry'] = RRI_dry
             output_dict['IRI_dry'] = IRI_dry
             output_dict['Kappa'] = Kappa        
-            output_dict['attempt_count'] = atmpt_cnt
+            output_dict['attempt_count_CRI'] = atmpt_cnt[0]
+            output_dict['attempt_count_kappa'] = atmpt_cnt[1]
 
             i0 = 0
             for i1 in [0,3,5]:
