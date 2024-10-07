@@ -66,7 +66,7 @@ def imp(filename, num_time_columns):
     for i1 in np.arange(0,len(rawdata)).reshape(-1):
         processdata1 = rawdata[i1]
         processdata2 = np.array(processdata1.split(",")).astype(float)
-        for i2 in np.arange(len(processdata2)-1):
+        for i2 in np.arange(0,len(processdata2)-1):
             if not processdata2[i2]:
                 processdata2[i2] = np.nan
             elif processdata2[i2] == fv[i2]:

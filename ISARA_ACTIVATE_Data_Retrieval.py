@@ -189,8 +189,8 @@ def RunISARA():
         return curry    
     
     #DN = input("Enter directory name with merged in-situ data\ne.g., ACTIVATE/FalconSMPS:\n")    
-    IFN = [f for f in os.listdir(r'./misc/ACTIVATE/InSituData/') if f.endswith('.ict')]
-    for input_filename in IFN:#[26:]:#
+    IFN = np.array([f for f in os.listdir(r'./misc/ACTIVATE/InSituData/') if f.endswith('.ict')]).astype(str)
+    for input_filename in IFN[26:]:#:#
         print(input_filename)
         # import the .ict data into a dictonary
         (output_dict, time, date, alt, lat, lon, sd1, sd2, RH_amb, RH_sp, Sc,
