@@ -60,12 +60,12 @@ def Model(wvl,size_equ,dndlogdp,dpg,RRI,IRI,nonabs_fraction,shape,density,RH,kap
   ikey = 1
   modeflag = {}
   for key in dndlogdp:
+    modeflag[key] = 1
     dndlogdp_ary_filename =f'{filename}_{key}'
     dndlogdp_ary = np.array(dndlogdp[key],ndmin = 1)  
     dpg_ary = np.array(dpg[key],ndmin = 1)
     dndlogdp_ary_file = open(dndlogdp_ary_filename, 'w')
     for i in np.arange(dndlogdp_ary.shape[0]):
-      modeflag[key] = 1
       if i < dndlogdp_ary.shape[0]:
         dndlogdp_ary_file.write('%0.04E %0.04E\n'%(dpg_ary[i],dndlogdp_ary[i]))
       else:

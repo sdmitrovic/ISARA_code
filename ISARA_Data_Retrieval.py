@@ -15,8 +15,8 @@ def RunISARA():
     :return: dictionary of all merged data and the retrieved parameters.
     :rtype: numpy dictionary
 
-    >>> import ISARA_ACTIVATE_Data_Retrieval
-    >>> ISARA_ACTIVATE_Data_Retrieval.RunISARA()
+    >>> import ISARA_Data_Retrieval
+    >>> ISARA_Data_Retrieval.RunISARA()
     activate-mrg-activate-large-smps_hu25_20200214_R0_20230831T150854.ict
     182
     182
@@ -59,7 +59,7 @@ def RunISARA():
             else:
                 sd[imode] = np.array([v for k, v in data.items() if k.startswith(f'{imode}_')])
             #print(sd[imode].size(1,2))
-        RH_amb = np.array(grab_keydata('RHw_'))
+        RH_amb = np.array(grab_keydata('RHw_DLH_DISKIN_ '))
         print(RH_amb.size)
         RH_sp = np.array(grab_keydata('RH_Sc'))
         Sc = np.array([v for k, v in data.items() if (k.startswith('Sc')&k.__contains__('total'))])
@@ -105,10 +105,10 @@ def RunISARA():
     #rho_dry = 2.63
     rho_amb = 1.63  
 
-    def handle_line(modelist, sd, dpg, UBcutoff, LBcutoff, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
+    def handle_line(modelist, sd, dpg, dpu, dpl, UBcutoff, LBcutoff, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
                         measured_coef_amb, measured_ext_coef_amb, measured_ssa_amb, measured_fRH,
                         wvl, size_equ, CRI_p, nonabs_fraction, shape,
-                        RH_sp, kappa_p, num_theta, RH_amb, rho_amb, path_optical_dataset, path_mopsmap_executable):
+                        RH_sp, kappa_p, num_theta, RH_amb, rho_amb, path_optical_dataset, path_mopsmap_executable, full_dp):
                     
         # So this code may look a bit funky, but we are doing what is called currying. This is simply the idea of returning a function inside of a function. It may look weird doing this, but this is actually required so that each worker has the necessary data. What ends up happening is each worker is passed a full copy of all the data contained within this function, so it has to know what data needs to be copied. Anyhow, the inner `curry` function is what is actually being called for each iteration of the for loop.
         def curry(i1):  
@@ -151,17 +151,29 @@ def RunISARA():
             dpflg = 0
             icount = 0
             Dpg = {}
+            Dpu = {}
+            Dpl = {}  
             Dndlogdp = {}
             Size_equ = {}
             Nonabs_fraction = {}
             Shape = {}
             Rho_dry = {}
             Rho_amb = {}  
+            fullsd = None
+            fulldpg = None
+            fulldpu = None
+            fulldpl = None
             for imode in sd:
-                icount =+ 1
-                modeflg = np.where(np.logical_not(np.isnan(dndlogdp[imode]))&(dpg[imode]>=LBcutoff[imode])&(dpg[imode]<UBcutoff[imode]))[0]
+                icount += 1
                 if len(dpg[imode]) > 3:
-                    dpflg =+ 1
+                    if imode == "APS":
+                        a = np.divide(dpl[imode],np.sqrt(rho_dry))
+                        b = np.divide(dpu[imode],np.sqrt(rho_dry))
+                        modeflg = np.where(np.logical_not(np.isnan(dndlogdp[imode]))&(a>=LBcutoff[imode])&(b<=UBcutoff[imode]))[0]
+                    else:
+                        modeflg = np.where(np.logical_not(np.isnan(dndlogdp[imode]))&(dpl[imode]>=LBcutoff[imode])&(dpu[imode]<=UBcutoff[imode]))[0]
+                
+                    dpflg += 1
                     Dndlogdp[imode] = dndlogdp[imode][modeflg] 
                     Size_equ[imode] = size_equ
                     Nonabs_fraction[imode] = nonabs_fraction
@@ -169,9 +181,29 @@ def RunISARA():
                     Rho_dry[imode] = rho_dry
                     Rho_amb[imode] = rho_amb
                     if imode == "APS":
-                        Dpg[imode] = np.divide(dpg[imode][modeflg],np.sqrt(Rho_dry[imode]))
+                        Dpg[imode] = np.divide(dpg[imode],np.sqrt(Rho_dry[imode]))[modeflg]
+                        Dpu[imode] = np.divide(dpu[imode],np.sqrt(Rho_dry[imode]))[modeflg]
+                        Dpl[imode] = np.divide(dpl[imode],np.sqrt(Rho_dry[imode]))[modeflg]
                     else:
                         Dpg[imode] = dpg[imode][modeflg]
+                        Dpu[imode] = dpu[imode][modeflg]
+                        Dpl[imode] = dpl[imode][modeflg]
+                    if dpflg == 1:
+                        fullsd = Dndlogdp[imode]
+                        fulldpg = Dpg[imode]
+                        fulldpu = Dpu[imode]
+                        fulldpl = Dpl[imode]
+                    else:
+                        fullsd = np.hstack((fullsd,Dndlogdp[imode]))
+                        fulldpg = np.hstack((fulldpg,Dpg[imode]))
+                        fulldpu = np.hstack((fulldpu,Dpu[imode]))
+                        fulldpl = np.hstack((fulldpl,Dpl[imode]))
+            full_sd = np.full(len(full_dp["dpg"]),np.nan)
+            for idpg in range(len(full_dp["dpg"])):
+                fulldpflg = np.where((fulldpg>=full_dp["dpl"][idpg])&(fulldpg<=full_dp["dpu"][idpg]))[0]
+
+                if len(fulldpflg)>0:
+                    full_sd[idpg] = fullsd[fulldpflg]
 
             measflg = np.where((np.logical_not(np.isnan(meas_coef))&(meas_coef>10**(-6))))[0]
             if (dpflg==icount) & (len(meas_coef[measflg]) == 6):
@@ -215,7 +247,7 @@ def RunISARA():
                                     CalfRH[i3] = CalCoef_amb[i3]/(CalExtCoef_dry[i3]*CalSSA_dry[i3])
             return (RRI_dry, IRI_dry, CalScatCoef_dry, CalAbsCoef_dry, CalExtCoef_dry, CalSSA_dry, meas_coef_dry, 
                     meas_ext_coef_dry, meas_ssa_dry, Kappa, CalCoef_amb, CalExtCoef_amb, CalSSA_amb, CalfRH,
-                    meas_coef_amb, meas_ext_coef_amb, meas_ssa_amb, meas_fRH, attempt_count)#, results)    
+                    meas_coef_amb, meas_ext_coef_amb, meas_ssa_amb, meas_fRH, attempt_count, full_sd)#, results)    
 
         return curry    
     
@@ -225,15 +257,34 @@ def RunISARA():
     UBcutoff = {}    
     LBcutoff = {}   
     dpg = {}
+    dpu = {}
+    dpl = {}
+    maxdpglength = 0
+    full_dp = {}
+    full_dp["dpg"] = None
+    full_dp["dpu"] = None
+    full_dp["dpl"] = None
     for i1 in range(nummodes):
         keyname = input(f"Enter the instrument name for mode {i1+1} data (e.g., LAS): ")
         modelist[i1] = keyname
         ifn = [f for f in os.listdir(f'./misc/{DN}/SDBinInfo/') if f.__contains__(keyname)]
         dpData = load_sizebins.Load(f'./misc/{DN}/SDBinInfo/{ifn[0]}')
         dpg[keyname] = dpData["Mid Points"]*pow(10,-3) 
+        dpu[keyname] = dpData["Upper Bounds"]*pow(10,-3) 
+        dpl[keyname] = dpData["Lower Bounds"]*pow(10,-3) 
         UBcutoff[keyname] = float(input(f"Enter the upper bound of particle sizes\nfor {keyname} data in nm (e.g., 125): "))*pow(10,-3)
         LBcutoff[keyname] = float(input(f"Enter the lower bound of particle sizes\nfor {keyname} data in nm (e.g., 10): "))*pow(10,-3)
-
+        dpcutoffflg = np.where((dpl[keyname]>=LBcutoff[keyname])&(dpu[keyname]<=UBcutoff[keyname]))[0]
+        maxdpglength += len(dpcutoffflg)
+        if i1 == 0:
+            full_dp["dpg"] = dpg[keyname][dpcutoffflg]
+            full_dp["dpu"] = dpu[keyname][dpcutoffflg]
+            full_dp["dpl"] = dpl[keyname][dpcutoffflg]
+        else:
+            full_dp["dpg"] = np.hstack((full_dp["dpg"],dpg[keyname][dpcutoffflg]))
+            full_dp["dpu"] = np.hstack((full_dp["dpu"],dpu[keyname][dpcutoffflg]))
+            full_dp["dpl"] = np.hstack((full_dp["dpl"],dpl[keyname][dpcutoffflg]))
+    
     IFN = [f for f in os.listdir(f'./misc/{DN}/InsituData/') if f.endswith('.ict')]
     for input_filename in IFN:#[156:]:
         print(input_filename)
@@ -241,8 +292,6 @@ def RunISARA():
         (output_dict,time,date,alt,lat,lon,sd,
             RH_amb,RH_sp,Sc,Abs,Ext,SSA,SSAa,fRH) = grab_ICT_Data(f'./misc/{DN}/InsituData/{input_filename}', modelist)
         if RH_amb.size > 1:
-            #print(RH_amb)
-            #RH_amb[RH_amb > 99] = 99    
 
             measured_coef_dry = np.vstack((Sc, Abs))
             measured_ext_coef_dry = Ext[1, :]
@@ -274,14 +323,15 @@ def RunISARA():
             meas_ext_coef_amb = np.full((1, L1),np.nan)
             meas_ssa_amb = np.full((1, L1),np.nan)
             meas_fRH = np.full((1, L1),np.nan) 
-            atmpt_cnt =  np.full((2, L1),np.nan)       
+            atmpt_cnt =  np.full((2, L1),np.nan)
+            full_dndlogdp =  np.full((maxdpglength, L1),np.nan)
             # Loop through each of the rows here using multiprocessing. This will split the rows across multiple different cores. Each row will be its own index in `line_data` with a tuple full of information. So, for instance, line_data[0] will contain (CRI_dry, CalCoef_dry, meas_coef_dry, Kappa, CalCoef_amb, meas_coef_amb, results) for the first line of data
             line_data = pool.map(
                 # This is a pain, I know, but all the data has to be cloned and accessible within each worker
-                handle_line(modelist, sd, dpg, UBcutoff, LBcutoff, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
+                handle_line(modelist, sd, dpg, dpu, dpl, UBcutoff, LBcutoff, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
                             measured_coef_amb, measured_ext_coef_amb, measured_ssa_amb, measured_fRH,
                             wvl, size_equ, CRI_p, nonabs_fraction, shape,
-                            RH_sp, kappa_p, num_theta, RH_amb, rho_amb, path_optical_dataset, path_mopsmap_executable),
+                            RH_sp, kappa_p, num_theta, RH_amb, rho_amb, path_optical_dataset, path_mopsmap_executable, full_dp),
                 range(L1),
             )
             # Now that the data has been fetched, we have to join together all the results into aggregated arrays. The `enumerate` function simply loops through the elements in the array and attaches the associated array index to it.
@@ -289,7 +339,7 @@ def RunISARA():
                 (RRI_dry_line, IRI_dry_line, CalScatCoef_dry_line, CalAbsCoef_dry_line, CalExtCoef_dry_line, 
                     CalSSA_dry_line, meas_coef_dry_line, meas_ext_coef_dry_line, meas_ssa_dry_line, Kappa_line, 
                     CalCoef_amb_line, CalExtCoef_amb_line, CalSSA_amb_line, CalfRH_line, meas_coef_amb_line,
-                    meas_ext_coef_amb_line, meas_ssa_amb_line, meas_fRH_line, attempt_count_line) = line_data#, results_line) = line_data       
+                    meas_ext_coef_amb_line, meas_ssa_amb_line, meas_fRH_line, attempt_count_line, fullsd_line) = line_data#, results_line) = line_data       
 
                 # The general trend for merging the values is pretty simple. If the value is not None, that means that it has a value set because it was reached conditionally. Therefore, if it does have a value, we will just update that part of the array. Now, I know you're probably thinking "why are we doing all this work again." Well, true, it is repeated work, but this will allow for much faster times overall (well, that's the hope anyhow).
                 def merge_in(line_val, merged_vals):
@@ -314,13 +364,18 @@ def RunISARA():
                 merge_in(meas_ssa_amb_line, meas_ssa_amb)
                 merge_in(meas_fRH_line, meas_fRH)
                 merge_in(attempt_count_line, atmpt_cnt)
-                
+                merge_in(fullsd_line, full_dndlogdp)
             # From here on out, everything can continue as normal
             output_dict['RRI_dry'] = RRI_dry
             output_dict['IRI_dry'] = IRI_dry
             output_dict['Kappa'] = Kappa     
             output_dict['attempt_count_CRI'] = atmpt_cnt[0,:]
             output_dict['attempt_count_kappa'] = atmpt_cnt[1,:]
+            dpgcount = 0
+            for i1 in full_dp["dpg"]:
+                output_dict[f'full_dndlogdp_{i1}'] = full_dndlogdp[dpgcount,:]
+                dpgcount += 1
+            #output_dict['full_dpg'] = full_dpg
             #print(Kappa)
             i0 = 0
             for i1 in [0,3,5]:

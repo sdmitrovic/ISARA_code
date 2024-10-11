@@ -26,7 +26,6 @@ def Load(filename):
     i0 = 0   
     for hdr in hdrs:
         dp[hdr] = np.array(Dp[:, i0]) 
-        i0 =+ 1
-
+        i0 += 1
     G.close()  # close .csv
     return dp
