@@ -38,9 +38,9 @@ def RunISARA():
 
     def grab_ICT_Data(filename,modelist):
         data = importICARTT.imp(filename,2) 
-
         def grab_keydata(key_starts_with):
             for key in data.keys():
+
                 if key.startswith(key_starts_with):
                     return data[key]    
 
@@ -59,6 +59,7 @@ def RunISARA():
             else:
                 sd[imode] = np.array([v for k, v in data.items() if k.startswith(f'{imode}_')])
             #print(sd[imode].size(1,2))
+        #RH_amb = np.array(grab_keydata('Relative_Humidity_Ambient_BUCHOLTZ'))
         RH_amb = np.array(grab_keydata('RHw_DLH_DISKIN_ '))
         print(RH_amb.size)
         RH_sp = np.array(grab_keydata('RH_Sc'))
@@ -201,7 +202,6 @@ def RunISARA():
             full_sd = np.full(len(full_dp["dpg"]),np.nan)
             for idpg in range(len(full_dp["dpg"])):
                 fulldpflg = np.where((fulldpg>=full_dp["dpl"][idpg])&(fulldpg<=full_dp["dpu"][idpg]))[0]
-
                 if len(fulldpflg)>0:
                     full_sd[idpg] = fullsd[fulldpflg]
 
@@ -291,6 +291,7 @@ def RunISARA():
         # import the .ict data into a dictonary
         (output_dict,time,date,alt,lat,lon,sd,
             RH_amb,RH_sp,Sc,Abs,Ext,SSA,SSAa,fRH) = grab_ICT_Data(f'./misc/{DN}/InsituData/{input_filename}', modelist)
+        print(input_filename)
         if RH_amb.size > 1:
 
             measured_coef_dry = np.vstack((Sc, Abs))

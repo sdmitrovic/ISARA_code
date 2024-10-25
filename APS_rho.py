@@ -99,7 +99,7 @@ def Align(D_optic,N_optic,D_aero,N_aero):
         output['rho'] = rho
         output['peak'] = peak
     else:
-        output['rho'] = 2.63
+        output['rho'] = 1.63
         output['peak'] = np.nan        
     return output 
     ##

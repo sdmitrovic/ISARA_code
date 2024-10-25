@@ -40,7 +40,7 @@ def imp(filename, num_time_columns):
     # fill first variable title string array position with full variable title of first variable on line 8 of .ict file    
     starttime = g[8]
     full_var_titles[0] = starttime[0:len(starttime)-1]    
-
+    
     # locate data header and data start rows of .ict file using line 0 of .ict file
     st = g[0]
     Vr_id = np.array(st.split(","))
