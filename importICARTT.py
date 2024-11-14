@@ -107,6 +107,10 @@ def imp(filename, num_time_columns):
                     dte = datetime.datetime(Yr,Mon,Day,0,0,0) + datetime.timedelta(days=1, hours=Hrs, seconds=Secd, minutes=Mnts, 
                                                                                 microseconds=0, milliseconds=0, weeks=0)
                     SAMtime[i1,i2] = dta[i1,i2] + dta[i1-1,i2] 
+                elif Hrs>=24:
+                    dte = datetime.datetime(Yr,Mon,Day,0,0,0) + datetime.timedelta(days=1, hours=0, seconds=Secd, minutes=Mnts, 
+                                                                                microseconds=0, milliseconds=0, weeks=0)   
+                    SAMtime[i1,i2] = dta[i1,i2]                                                                             
                 else:
                     dte = datetime.datetime(Yr,Mon,Day,Hrs,Mnts,Secd)
                     SAMtime[i1,i2] = dta[i1,i2]

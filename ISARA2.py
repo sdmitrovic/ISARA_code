@@ -176,7 +176,7 @@ def Retr_kappa(wvl,
       RRI_w[imode] = (CRI_d[0]+((gf**3)-1)*RRIw)/(gf**3)
       IRI_w[imode] = (CRI_d[1]+((gf**3)-1)*IRIw)/(gf**3)#CRI1[1]
     if stop_indx == 0:
-      results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg,RRI_w,IRI_w,nonabs_fraction,shape,rho,0,0,num_theta,optical_dataset,path_mopsmap_executable)
+      results = mopsmap_wrapper.Model(wvl,size_equ,sd,dpg_w,RRI_w,IRI_w,nonabs_fraction,shape,rho,0,0,num_theta,optical_dataset,path_mopsmap_executable)
       scat_coef = results['ssa']*results['ext_coeff']
       abs_coef = results['ext_coeff']-results['ssa']*results['ext_coeff']
       Cdif = abs(measured_wet_sca_coef-scat_coef[3])/measured_wet_sca_coef

@@ -48,7 +48,7 @@ def RunISARA():
         frmttime = np.array(grab_keydata('fmtdatetime_Start'))
         print(len(frmttime))
         date = grab_keydata('date')
-        alt = np.array(grab_keydata('gpsALT'))
+        alt = np.array(grab_keydata('GPS_Altitude_BUCHOLTZ'))#alt = np.array(grab_keydata('gpsALT'))#alt = np.array(grab_keydata('GPS_alt'))
         lat = np.array(grab_keydata('Latitude'))
         print(len(lat))
         lon = np.array(grab_keydata('Longitude'))
@@ -59,8 +59,8 @@ def RunISARA():
             else:
                 sd[imode] = np.array([v for k, v in data.items() if k.startswith(f'{imode}_')])
             #print(sd[imode].size(1,2))
-        #RH_amb = np.array(grab_keydata('Relative_Humidity_Ambient_BUCHOLTZ'))
-        RH_amb = np.array(grab_keydata('RHw_DLH_DISKIN_ '))
+        RH_amb = np.array(grab_keydata('Relative_Humidity_Ambient_BUCHOLTZ'))
+        #RH_amb = np.array(grab_keydata('RHw_DLH_DISKIN_ '))
         print(RH_amb.size)
         RH_sp = np.array(grab_keydata('RH_Sc'))
         Sc = np.array([v for k, v in data.items() if (k.startswith('Sc')&k.__contains__('total'))])
@@ -76,8 +76,8 @@ def RunISARA():
     OP_Dictionary = {}  
 
     # set desired output wavelengths in micrometer
-    wvl = [0.450, 0.470, 0.532, 0.550, 0.660, 0.700]    
-
+    #wvl = [0.450, 0.470, 0.532, 0.550, 0.660, 0.700]    
+    wvl = [0.450, 0.465, 0.520, 0.550, 0.640, 0.700] 
     size_equ = 'cs' 
 
     RRIp = np.arange(1.52,1.54,0.01).reshape(-1)#np.array([1.53])#np.arange(1.45,2.01,0.01).reshape(-1)
@@ -119,13 +119,12 @@ def RunISARA():
             for imode in sd:
                 dndlogdp[imode] = np.multiply(sd[imode][:, i1], pow(10, 6))
                 dndlogdp[imode][np.where(dndlogdp[imode] == 0)[0]] = np.nan
-
             if "APS" in modelist[:]:
                 output_dictionary_1 = APS_rho.Align(dpg["UHSAS"],dndlogdp["UHSAS"],dpg["APS"],dndlogdp["APS"])
                 rho_dry = output_dictionary_1["rho"]
                 peak = output_dictionary_1["peak"]
             else:
-                rho_dry = np.full((1, L1), 2.63)
+                rho_dry = np.full((1, L1), 1.63)
                 peak = np.full((1, L1), np.nan)
 
             # This is where things become a pain :( Since we are spreading the work across multiple cores, there is a copy of the data in each core. Therefore, we are not able to easily make updates to the numpy arrays, so instead we will obtain the results for each line then join them together after the multiprocessing occurs.
@@ -206,8 +205,10 @@ def RunISARA():
                     full_sd[idpg] = fullsd[fulldpflg]
 
             measflg = np.where((np.logical_not(np.isnan(meas_coef))&(meas_coef>10**(-6))))[0]
+            #print(len(meas_coef))
             if (dpflg==icount) & (len(meas_coef[measflg]) == 6):
                 attempt_count[0] = 1
+                #print(attempt_count[0])
                 Results = ISARA2.Retr_CRI(wvl, meas_coef[0:3], meas_coef[3:], Dndlogdp, Dpg, CRI_p, Size_equ, 
                     Nonabs_fraction, Shape, Rho_dry, num_theta, path_optical_dataset, path_mopsmap_executable)    
 
@@ -231,6 +232,7 @@ def RunISARA():
                         Results = ISARA2.Retr_kappa(wvl, meas_coef, Dndlogdp, Dpg, 80, kappa_p, CRI_dry,
                             Size_equ, Nonabs_fraction, Shape, Rho_amb, num_theta,
                             path_optical_dataset, path_mopsmap_executable)
+                        
                         if Results["Kappa"] is not None:
                             Kappa = Results["Kappa"]
                             CalCoef_amb = Results["Cal_coef"]
@@ -245,6 +247,7 @@ def RunISARA():
                             for i3 in range(len(CalCoef_amb)):
                                 if CalExtCoef_dry is not None:
                                     CalfRH[i3] = CalCoef_amb[i3]/(CalExtCoef_dry[i3]*CalSSA_dry[i3])
+
             return (RRI_dry, IRI_dry, CalScatCoef_dry, CalAbsCoef_dry, CalExtCoef_dry, CalSSA_dry, meas_coef_dry, 
                     meas_ext_coef_dry, meas_ssa_dry, Kappa, CalCoef_amb, CalExtCoef_amb, CalSSA_amb, CalfRH,
                     meas_coef_amb, meas_ext_coef_amb, meas_ssa_amb, meas_fRH, attempt_count, full_sd)#, results)    
@@ -291,13 +294,13 @@ def RunISARA():
         # import the .ict data into a dictonary
         (output_dict,time,date,alt,lat,lon,sd,
             RH_amb,RH_sp,Sc,Abs,Ext,SSA,SSAa,fRH) = grab_ICT_Data(f'./misc/{DN}/InsituData/{input_filename}', modelist)
-        print(input_filename)
+        #print(input_filename)
         if RH_amb.size > 1:
 
-            measured_coef_dry = np.vstack((Sc, Abs))
+            measured_coef_dry = np.vstack((Sc[0:3], Abs))
             measured_ext_coef_dry = Ext[1, :]
             measured_ssa_dry = SSA
-            measured_coef_amb = Sc[0,:]*fRH #Sc[0, :]
+            measured_coef_amb = Sc[1,:]*fRH #Sc[0, :]
             measured_ext_coef_amb = Ext[0, :]
             measured_ssa_amb = SSAa
             measured_fRH = fRH      
