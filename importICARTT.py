@@ -26,6 +26,10 @@ def imp(filename, num_time_columns):
     DATE = DATEinfo[0:3] # save date to add to file
 
     Fv = g[11]  # locate line with fill values, wich are located on line 11 of .ict file, to replace with 'nan'
+
+    if Fv.__contains__(";"):
+        fva = np.array(Fv.split(";"))
+        Fv = fva[0]
     fv = np.array(Fv.split(",")).astype(float) # create array of fill values
     varend = int(g[9]) # locate line with number of variables, which is located on line 9 of .ict file
 
