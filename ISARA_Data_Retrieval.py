@@ -36,7 +36,7 @@ def RunISARA():
     def pause():
         programPause = input("Press the <ENTER> key to continue...")    
 
-    def grab_ICT_Data(filename,modelist):
+    def grab_ICT_Data(filename,modelist,full_wvl):
         data = importICARTT.imp(filename,2) 
         def grab_keydata(key_starts_with):
             for key in data.keys():
@@ -63,10 +63,14 @@ def RunISARA():
         #RH_amb = np.array(grab_keydata('RHw_DLH_DISKIN_ '))
         print(RH_amb.size)
         RH_sp = np.array(grab_keydata('RH_Sc'))
-        Sc = np.array([v for k, v in data.items() if (k.startswith('Sc')&k.__contains__('total'))])
-        Abs = np.array([v for k, v in data.items() if k.startswith('Abs')])
-        Ext = np.array([v for k, v in data.items() if k.startswith('Ext')])
-        SSA = np.array([v for k, v in data.items() if (k.startswith('SSA')&k.__contains__('dry'))])
+        Sc = {}
+        Abs = {}
+        SSA = {}
+        for i1 in full_wvl["Sc"]:
+            Sc[f'Sc{full_wvl['Sc'][i1]}'] = np.array([v for k, v in data.items() if (k.startswith(f'Sc{full_wvl['Sc'][i1]}')&k.__contains__('total'))])
+            Abs[f'Abs{full_wvl['Abs'][i1]}'] = np.array([v for k, v in data.items() if k.startswith(f'Abs{full_wvl['Abs'][i1]}')])
+            SSA[f'{full_wvl['Sc'][i1]}'] = np.array([v for k, v in data.items() if (k.startswith('SSA')&k.__contains__('dry')&k.__contains__(f'{full_wvl['Sc'][i1]}'))])
+        Ext = np.array([v for k, v in data.items() if k.startswith('Ext532_total_dry')])
         SSAa =np.array(grab_keydata('SSA_amb_550nm_ZIEMBA'))
         print(SSAa.size)
         fRH = np.array(grab_keydata('fRH'))
@@ -77,7 +81,7 @@ def RunISARA():
 
     # set desired output wavelengths in micrometer
     #wvl = [0.450, 0.470, 0.532, 0.550, 0.660, 0.700]    
-    wvl = [0.450, 0.465, 0.520, 0.550, 0.640, 0.700] 
+    #wvl = [0.450, 0.465, 0.520, 0.550, 0.640, 0.700] 
     size_equ = 'cs' 
 
     RRIp = np.arange(1.52,1.54,0.01).reshape(-1)#np.array([1.53])#np.arange(1.45,2.01,0.01).reshape(-1)
@@ -107,8 +111,8 @@ def RunISARA():
     rho_wet = 1.63  
 
     def handle_line(modelist, sd, dpg, dpu, dpl, UBcutoff, LBcutoff, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
-                        measured_coef_wet, measured_ext_coef_wet, measured_ssa_amb, measured_fRH,
-                        wvl, size_equ, CRI_p, nonabs_fraction, shape,
+                        measured_coef_wet, measured_ext_coef_wet, measured_ssa_wet, measured_fRH,
+                        full_wvl, size_equ, CRI_p, nonabs_fraction, shape,
                         RH_sp, kappa_p, num_theta, RH_amb, rho_wet, path_optical_dataset, path_mopsmap_executable, full_dp):
                     
         # So this code may look a bit funky, but we are doing what is called currying. This is simply the idea of returning a function inside of a function. It may look weird doing this, but this is actually required so that each worker has the necessary data. What ends up happening is each worker is passed a full copy of all the data contained within this function, so it has to know what data needs to be copied. Anyhow, the inner `curry` function is what is actually being called for each iteration of the for loop.
@@ -240,7 +244,7 @@ def RunISARA():
                             CalSSA_wet = Results["Cal_SSA"]
                             meas_coef_wet = measured_coef_wet[i1]
                             meas_ext_coef_wet = measured_ext_coef_wet[i1]
-                            meas_ssa_amb = measured_ssa_amb[i1]
+                            meas_ssa_wet = measured_ssa_wet[i1]
                             meas_fRH = measured_fRH[i1]
                             CalfRH = np.empty(len(CalCoef_wet))
                             CalfRH[:] = np.nan
@@ -251,7 +255,7 @@ def RunISARA():
 
             return (RRI_dry, IRI_dry, CalScatCoef_dry, CalAbsCoef_dry, CalExtCoef_dry, CalSSA_dry, meas_coef_dry, 
                     meas_ext_coef_dry, meas_ssa_dry, Kappa, CalCoef_wet, CalExtCoef_wet, CalSSA_wet, CalfRH,
-                    meas_coef_wet, meas_ext_coef_wet, meas_ssa_amb, meas_fRH, attempt_count, full_sd)#, results)    
+                    meas_coef_wet, meas_ext_coef_wet, meas_ssa_wet, meas_fRH, attempt_count, full_sd)#, results)    
 
         return curry    
     
@@ -288,22 +292,28 @@ def RunISARA():
             full_dp["dpg"] = np.hstack((full_dp["dpg"],dpg[keyname][dpcutoffflg]))
             full_dp["dpu"] = np.hstack((full_dp["dpu"],dpu[keyname][dpcutoffflg]))
             full_dp["dpl"] = np.hstack((full_dp["dpl"],dpl[keyname][dpcutoffflg]))
-    
+    numwvl = int(input("Enter number of spectral channels measured: "))
+    full_wvl = {}
+    full_wvl["Sc"] = np.full((numwvl),np.nan)
+    full_wvl["Abs"] = np.full((numwvl),np.nan)
+    for i1 in range(numwvl):
+        full_wvl["Sc"][i1]  = input(f"Enter scattering wavelength associated with channel {i1+1} in nm (e.g., 450): ")
+        full_wvl["Abs"][i1] = input(f"Enter absorption wavelength associated with channel {i1+1} in nm (e.g., 465): ")
     IFN = [f for f in os.listdir(f'./misc/{DN}/InsituData/') if f.endswith('.ict')]
     for input_filename in IFN:#[156:]:
         print(input_filename)
         # import the .ict data into a dictonary
         (output_dict,time,date,alt,lat,lon,sd,
-            RH_amb,RH_sp,Sc,Abs,Ext,SSA,SSAa,fRH) = grab_ICT_Data(f'./misc/{DN}/InsituData/{input_filename}', modelist)
+            RH_amb,RH_sp,Sc,Abs,Ext,SSA,SSAa,fRH,full_wvl) = grab_ICT_Data(f'./misc/{DN}/InsituData/{input_filename}', modelist)
         #print(input_filename)
         if RH_amb.size > 1:
 
-            measured_coef_dry = np.vstack((Sc[0:3], Abs))
+            #measured_coef_dry = np.vstack((Sc[0:3], Abs))
             measured_ext_coef_dry = Ext[1, :]
             measured_ssa_dry = SSA
-            measured_coef_wet = Sc[1,:]*fRH #Sc[0, :]
+            measured_coef_wet = Sc['550']*fRH #Sc[0, :]
             measured_ext_coef_wet = measured_coef_wet+Abs[1,:]
-            measured_ssa_amb = measured_coef_wet/measured_ext_coef_wet
+            measured_ssa_wet = measured_coef_wet/measured_ext_coef_wet
             measured_fRH = fRH      
             #print(measured_coef_wet[np.where(np.logical_not(np.isnan(measured_coef_wet)))])
             Lwvl = len(wvl)
@@ -334,8 +344,8 @@ def RunISARA():
             line_data = pool.map(
                 # This is a pain, I know, but all the data has to be cloned and accessible within each worker
                 handle_line(modelist, sd, dpg, dpu, dpl, UBcutoff, LBcutoff, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
-                            measured_coef_wet, measured_ext_coef_wet, measured_ssa_amb, measured_fRH,
-                            wvl, size_equ, CRI_p, nonabs_fraction, shape,
+                            measured_coef_wet, measured_ext_coef_wet, measured_ssa_wet, measured_fRH,
+                            full_wvl, size_equ, CRI_p, nonabs_fraction, shape,
                             RH_sp, kappa_p, num_theta, RH_amb, rho_wet, path_optical_dataset, path_mopsmap_executable, full_dp),
                 range(L1),
             )
