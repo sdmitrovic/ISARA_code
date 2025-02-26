@@ -40,7 +40,6 @@ def RunISARA():
         data = importICARTT.imp(filename,2) 
         def grab_keydata(key_starts_with):
             for key in data.keys():
-
                 if key.startswith(key_starts_with):
                     return data[key]    
 
@@ -58,66 +57,28 @@ def RunISARA():
                 sd[imode] = np.array([v for k, v in data.items() if k.startswith(f'n_Dp_')])
             else:
                 sd[imode] = np.array([v for k, v in data.items() if k.startswith(f'{imode}_')])
-            #print(sd[imode].size(1,2))
-        #RH_amb = np.array(grab_keydata('Relative_Humidity_Ambient_BUCHOLTZ'))
-        #RH_amb = np.array(grab_keydata('RHw_DLH_DISKIN_ '))
-        #print(RH_amb.size)
-        #RH_sp = np.array(grab_keydata('RH_Sc'))
+
         Sc = dict()
         Abs = dict()
         #SSA = {}
         Lwvl = len(full_wvl["Sc"])
         for iwvl in range(Lwvl):
             #print(iwvl)
-            Sc[f'{full_wvl["Sc"][iwvl]}'] = np.array(grab_keydata(f'Sc{full_wvl["Sc"][iwvl]}_total'))
-            #print(f'{full_wvl["Sc"][i1]}','\n',Sc[f'{full_wvl["Sc"][i1]}'])
-            Abs[f'{full_wvl["Abs"][iwvl]}'] = np.array(grab_keydata(f'Abs{full_wvl["Abs"][iwvl]}_total'))
-            #SSA[f'{full_wvl["Sc"][i1]}'] = np.array([v for k, v in data.items() if (k.startswith('SSA')&k.__contains__('dry')&k.__contains__(f'{full_wvl["Sc"][i1]}'))])
-        #Ext = np.array(grab_keydata('Ext532_total_dry'))
-        #SSAa =np.array(grab_keydata('SSA_amb_550nm_ZIEMBA'))
-        #print(SSAa.size)
-        fRH = np.array(grab_keydata('fRH'))
+            Sc[f'{full_wvl["Sc"][iwvl]}'] = np.array(grab_keydata(f'Sc{full_wvl["Sc"][iwvl]}_total_ZIEMBA'))
+            Abs[f'{full_wvl["Abs"][iwvl]}'] = np.array(grab_keydata(f'Abs{full_wvl["Abs"][iwvl]}_total_ZIEMBA'))
+        fRH = np.array(grab_keydata('fRH550_RH20to80_ZIEMBA'))
+        print(fRH.size)
         return (data, time, date, alt, lat, lon, sd, Sc, Abs, fRH)   
     
-
-    OP_Dictionary = {}  
-
-    # set desired output wavelengths in micrometer
-    #wvl = [0.450, 0.470, 0.532, 0.550, 0.660, 0.700]    
-    #wvl = [0.450, 0.465, 0.520, 0.550, 0.640, 0.700] 
-    size_equ = 'cs' 
-
-    RRIp = np.arange(1.52,1.54,0.01).reshape(-1)#np.array([1.53])#np.arange(1.45,2.01,0.01).reshape(-1)
-    IRIp = np.hstack((0,10**(-7),10**(-6),10**(-5),10**(-4),np.arange(0.001,0.0801,0.001).reshape(-1)))
-    #np.hstack((0,10**(-7),10**(-6),10**(-5),10**(-4),np.arange(0.001,0.101,0.001).reshape(-1),np.arange(0.1,0.96,0.01).reshape(-1)))
-    #np.arange(0.0,0.08,0.001).reshape(-1)
-    CRI_p = np.empty((len(IRIp)*len(RRIp), 2))
-    io = 0
-    for i1 in range(len(IRIp)):
-        for i2 in range(len(RRIp)):
-            CRI_p[io, :] = [RRIp[i2], IRIp[i1]]
-            io += 1 
-
-    kappa_p = np.arange(0.0, 1.40, 0.001).reshape(-1)  
-
-    # set the non-absorbing fraction of the aerosol SD
-    nonabs_fraction = 0 
-
-    # set shape or shape distribution of particles
-    # shape='spheroid oblate 1.7'
-    # shape='spheroid distr_file '../data/ar_kandler''
-    shape = 'sphere'    
-
-    num_theta = 2   
-
-    #rho_dry = 2.63
-    rho_wet = 1.63  
 
     def handle_line(modelist, sd, dpg, dpu, dpl, UBcutoff, LBcutoff, measured_Sc_dry, measured_Abs_dry, measured_fRH,
                         wvl, size_equ, CRI_p, nonabs_fraction, shape,
                         kappa_p, num_theta, rho_wet, path_optical_dataset, path_mopsmap_executable, full_dp):
                     
-        # So this code may look a bit funky, but we are doing what is called currying. This is simply the idea of returning a function inside of a function. It may look weird doing this, but this is actually required so that each worker has the necessary data. What ends up happening is each worker is passed a full copy of all the data contained within this function, so it has to know what data needs to be copied. Anyhow, the inner `curry` function is what is actually being called for each iteration of the for loop.
+        # So this code may look a bit funky, but we are doing what is called currying. This is simply the idea of returning a function inside of a function. 
+        # It may look weird doing this, but this is actually required so that each worker has the necessary data. What ends up happening is each worker is 
+        # passed a full copy of all the data contained within this function, so it has to know what data needs to be copied. Anyhow, the inner `curry` 
+        # function is what is actually being called for each iteration of the for loop.
         def curry(i1):  
             finalout = {}
             #finalout['full_wvl'] = full_wvl
@@ -149,7 +110,8 @@ def RunISARA():
                 rho_dry = np.full((1, L1), 1.63)
                 peak = np.full((1, L1), np.nan)
 
-            # This is where things become a pain :( Since we are spreading the work across multiple cores, there is a copy of the data in each core. Therefore, we are not able to easily make updates to the numpy arrays, so instead we will obtain the results for each line then join them together after the multiprocessing occurs.
+            # This is where things become a pain :( Since we are spreading the work across multiple cores, there is a copy of the data in each core. Therefore, we are not 
+            # able to easily make updates to the numpy arrays, so instead we will obtain the results for each line then join them together after the multiprocessing occurs.
             finalout['attempt_count_CRI'] = 0
             finalout['attempt_count_kappa'] = 0
             # You will notice that in the code, instead of doing things like CRI_dry[:, i1] = ..., we are instead just assining the value for this row instead and then they will be merged later
@@ -224,27 +186,91 @@ def RunISARA():
                     #print(Results["RRIdry"])
                     CRI_dry = np.array([Results["RRI_dry"],Results["IRI_dry"]])
                     for key in Results:
-                        finalout[key] = None
                         finalout[key] = Results[key]
 
                     #if (RH_amb[i1].astype(str) != 'nan') and (measured_coef_wet[i1].astype(str) != 'nan'):
                     if np.logical_not(np.isnan(finalout[f'Meas_sca_coef_wet_550'])):
                         finalout['attempt_count_kappa'] = 1
-                        #meas_coef = np.multiply(measured_coef_wet[i1], pow(10, -6))
                         Results = ISARA2.Retr_kappa(full_wvl2, finalout, Dndlogdp, Dpg, 80, kappa_p, CRI_dry,
                             Size_equ, Nonabs_fraction, Shape, Rho_wet, num_theta,
                             path_optical_dataset, path_mopsmap_executable)
                         
                         if Results["Kappa"] is not None:
                             for key in Results:
-                                finalout[key] = None
                                 finalout[key] = Results[key]
-                            finalout[f'Cal_fRH'] = finalout[f'Cal_sca_coef_wet_550']/finalout[f'Cal_ext_coef_wet_550']      
+                            #print(finalout["kappa"])    
+                            finalout[f'Cal_fRH'] = finalout[f'Cal_sca_coef_wet_550']/finalout[f'Meas_sca_coef_dry_550']
+                        else:
+                            finalout[f'Cal_fRH'] = np.nan
+                            finalout[f'Kappa'] = np.nan
+                            for i2 in range(len(full_wvl2["Sc"])):
+                                finalout[f'Cal_sca_coef_wet_{full_wvl2["Sc"][i2]}'] = np.nan
+                                finalout[f'Cal_SSA_wet_{full_wvl2["Sc"][i2]}'] = np.nan
+                                finalout[f'Cal_ext_coef_wet_{full_wvl2["Sc"][i2]}'] = np.nan
+                else:
+                    finalout["RRI_dry"] = np.nan
+                    finalout["IRI_dry"] = np.nan
+                    for i2 in range(Lwvl):
+                        finalout[f'Cal_sca_coef_dry_{full_wvl["Sc"][i2]}'] = np.nan
+                        finalout[f'Cal_abs_coef_dry_{full_wvl["Abs"][i2]}'] = np.nan
+                        finalout[f'Cal_SSA_dry_{full_wvl["Sc"][i2]}'] = np.nan
+                        finalout[f'Cal_SSA_dry_{full_wvl["Abs"][i2]}'] = np.nan
+                        finalout[f'Cal_ext_coef_dry_{full_wvl["Sc"][i2]}'] = np.nan
+                        finalout[f'Cal_ext_coef_dry_{full_wvl["Abs"][i2]}'] = np.nan
+            else:
+                    finalout["RRI_dry"] = np.nan
+                    finalout["IRI_dry"] = np.nan
+                    for i2 in range(Lwvl):
+                        finalout[f'Cal_sca_coef_dry_{full_wvl["Sc"][i2]}'] = np.nan
+                        finalout[f'Cal_abs_coef_dry_{full_wvl["Abs"][i2]}'] = np.nan
+                        finalout[f'Cal_SSA_dry_{full_wvl["Sc"][i2]}'] = np.nan
+                        finalout[f'Cal_SSA_dry_{full_wvl["Abs"][i2]}'] = np.nan
+                        finalout[f'Cal_ext_coef_dry_{full_wvl["Sc"][i2]}'] = np.nan
+                        finalout[f'Cal_ext_coef_dry_{full_wvl["Abs"][i2]}'] = np.nan
 
+                    finalout[f'Cal_fRH'] = np.nan
+                    finalout[f'Kappa'] = np.nan
+                    for i2 in range(len(full_wvl2["Sc"])):
+                        finalout[f'Cal_sca_coef_wet_{full_wvl2["Sc"][i2]}'] = np.nan
+                        finalout[f'Cal_SSA_wet_{full_wvl2["Sc"][i2]}'] = np.nan
+                        finalout[f'Cal_ext_coef_wet_{full_wvl2["Sc"][i2]}'] = np.nan                        
             return (finalout)   
 
         return curry    
-    
+
+    OP_Dictionary = {}  
+
+    # set desired output wavelengths in micrometer
+    #wvl = [0.450, 0.470, 0.532, 0.550, 0.660, 0.700]    
+    #wvl = [0.450, 0.465, 0.520, 0.550, 0.640, 0.700] 
+    size_equ = 'cs' 
+
+    RRIp = np.arange(1.52,1.54,0.01).reshape(-1)#np.array([1.53])#np.arange(1.45,2.01,0.01).reshape(-1)
+    IRIp = np.hstack((0,10**(-7),10**(-6),10**(-5),10**(-4),np.arange(0.001,0.0801,0.001).reshape(-1)))
+    #np.hstack((0,10**(-7),10**(-6),10**(-5),10**(-4),np.arange(0.001,0.101,0.001).reshape(-1),np.arange(0.1,0.96,0.01).reshape(-1)))
+    #np.arange(0.0,0.08,0.001).reshape(-1)
+    CRI_p = np.empty((len(IRIp)*len(RRIp), 2))
+    io = 0
+    for i1 in range(len(IRIp)):
+        for i2 in range(len(RRIp)):
+            CRI_p[io, :] = [RRIp[i2], IRIp[i1]]
+            io += 1 
+
+    kappa_p = np.arange(0.0, 1.40, 0.001).reshape(-1)  
+
+    # set the non-absorbing fraction of the aerosol SD
+    nonabs_fraction = 0 
+
+    # set shape or shape distribution of particles
+    # shape='spheroid oblate 1.7'
+    # shape='spheroid distr_file '../data/ar_kandler''
+    shape = 'sphere'    
+
+    num_theta = 2   
+
+    #rho_dry = 2.63
+    rho_wet = 1.63  
+
     DN = input("Enter the campaign name (e.g., ACTIVATE): ")   
     nummodes = int(input("Enter number of size distributions measured: "))
     modelist = np.empty(nummodes).astype(str)  
@@ -289,12 +315,9 @@ def RunISARA():
     for input_filename in IFN:#[156:]:
         print(input_filename)
         # import the .ict data into a dictonary
-        #(output_dict,time,date,alt,lat,lon,sd,
-        #    RH_amb,RH_sp,Sc,Abs,Ext,SSA,SSAa,fRH) 
         (output_dict, time, date, alt, lat, lon, sd, Sc, Abs, fRH)  = grab_ICT_Data(f'./misc/{DN}/InsituData/{input_filename}', modelist, full_wvl)
-        #print(input_filename)
-        if fRH.size > 1:
 
+        if ((fRH.size > 1)&(Sc[f'{full_wvl["Sc"][0]}'].size > 1)):
             L1 = fRH.size
             output_dict['full_dp'] = full_dp
             output_dict["dpg"] = dpg
@@ -305,7 +328,9 @@ def RunISARA():
             output_dict["dpcutoffflg"] = dpcutoffflg
             output_dict["maxdpglength"] = maxdpglength            
 
-            # Loop through each of the rows here using multiprocessing. This will split the rows across multiple different cores. Each row will be its own index in `line_data` with a tuple full of information. So, for instance, line_data[0] will contain (CRI_dry, CalCoef_dry, meas_coef_dry, Kappa, CalCoef_wet, meas_coef_wet, results) for the first line of data
+            # Loop through each of the rows here using multiprocessing. This will split the rows across multiple different cores. Each row will be its own index in `line_data` 
+            # with a tuple full of information. So, for instance, line_data[0] will contain (CRI_dry, CalCoef_dry, meas_coef_dry, Kappa, CalCoef_wet, meas_coef_wet, results) 
+            # for the first line of data
             line_data = pool.map(
                 # This is a pain, I know, but all the data has to be cloned and accessible within each worker
                 handle_line(modelist, sd, dpg, dpu, dpl, UBcutoff, LBcutoff, Sc, Abs,
@@ -314,19 +339,22 @@ def RunISARA():
                 range(L1),
             )
             #output_dict = dict()
-            # Now that the data has been fetched, we have to join together all the results into aggregated arrays. The `enumerate` function simply loops through the elements in the array and attaches the associated array index to it.
-            # The general trend for merging the values is pretty simple. If the value is not None, that means that it has a value set because it was reached conditionally. Therefore, if it does have a value, we will just update that part of the array. Now, I know you're probably thinking "why are we doing all this work again." Well, true, it is repeated work, but this will allow for much faster times overall (well, that's the hope anyhow).
+            # Now that the data has been fetched, we have to join together all the results into aggregated arrays. The `enumerate` function simply loops through the elements in 
+            # the array and attaches the associated array index to it.
+            # The general trend for merging the values is pretty simple. If the value is not None, that means that it has a value set because it was reached conditionally. 
+            #Therefore, if it does have a value, we will just update that part of the array. Now, I know you're probably thinking "why are we doing all this work again." Well, 
+            # true, it is repeated work, but this will allow for much faster times overall (well, that's the hope anyhow).
             # def merge_in(line_val, merged_vals):
             for i1, line_data in enumerate(line_data):
                 (results_line) = line_data   
                 for key2 in results_line:
                     if key2 in output_dict:
                         output_dict[key2][i1] = results_line[key2]
-                    if i1 == 0:
+                    else:
                         output_dict[key2] = np.full((L1),np.nan)
                         #print(results_line[key2])
                         output_dict[key2][i1] = results_line[key2]
-
+            print(output_dict["Kappa"].size)            
             output_filename = np.array(input_filename.split('.ict'))
             output_filename = output_filename[0]
             np.save(f'{output_filename}.npy', output_dict)  
