@@ -107,7 +107,7 @@ def RunISARA():
                 rho_dry = output_dictionary_1["rho"]
                 peak = output_dictionary_1["peak"]
             else:
-                rho_dry = np.full((1, L1), 1.63)
+                rho_dry = np.full((1, L1), 1)
                 peak = np.full((1, L1), np.nan)
 
             # This is where things become a pain :( Since we are spreading the work across multiple cores, there is a copy of the data in each core. Therefore, we are not 
