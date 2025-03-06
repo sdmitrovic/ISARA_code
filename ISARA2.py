@@ -2,7 +2,9 @@ import mopsmap_wrapper_022425
 MMModel = mopsmap_wrapper_022425.Model
 import numpy as np
 
-def Retr_CRI(full_wvl,optical_measurements,
+def Retr_CRI(full_wvl, 
+  val_wvl, 
+  optical_measurements,
   sd,
   dpg,
   CRI_p,
@@ -50,11 +52,11 @@ def Retr_CRI(full_wvl,optical_measurements,
   L1 = len(CRI_p[:,0])
   L2 = len(full_wvl["Sc"])
   wvl = None
-  for i1 in range(L2):
-    if i1 == 0:
-      wvl = np.array([full_wvl["Sc"][i1],full_wvl["Abs"][i1]])
+  for iwvl in range(L2):
+    if iwvl == 0:
+      wvl = np.array([full_wvl["Sc"][iwvl],full_wvl["Abs"][iwvl]])
     else:
-      wvl = np.hstack((wvl,np.array([full_wvl["Sc"][i1],full_wvl["Abs"][i1]])))
+      wvl = np.hstack((wvl,np.array([full_wvl["Sc"][iwvl],full_wvl["Abs"][iwvl]])))
 
   wvl = np.sort(wvl, axis=None)
   iri = np.full((L1), np.nan)
@@ -127,9 +129,25 @@ def Retr_CRI(full_wvl,optical_measurements,
         Results[f'Cal_SSA_dry_{full_wvl["Abs"][i2]}'] = results[f'ssa_{full_wvl["Abs"][i2]}']
         Results[f'Cal_ext_coef_dry_{full_wvl["Sc"][i2]}'] = results[f'ext_coeff_{full_wvl["Sc"][i2]}']
         Results[f'Cal_ext_coef_dry_{full_wvl["Abs"][i2]}'] = results[f'ext_coeff_{full_wvl["Abs"][i2]}']
+      if val_wvl is not None:
+        wvl2 = None
+        for iwvl in range(len(val_wvl)):
+          if iwvl == 0:
+            wvl2 = val_wvl
+          else:
+            wvl2 = np.hstack((wvl2,val_wvl))
+        results = MMModel(wvl2,size_equ,sd,dpg,RRI_d,IRI_d,nonabs_fraction,shape,rho,0,0,num_theta,optical_dataset,path_mopsmap_executable) 
+        for iwvl in range(len(val_wvl)):
+          Results[f'Cal_sca_coef_dry_{val_wvl[iwvl]}'] = results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}']
+          Results[f'Cal_abs_coef_dry_{val_wvl[iwvl]}'] = results[f'ext_coeff_{val_wvl[iwvl]}']-results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}'] 
+          Results[f'Cal_SSA_dry_{val_wvl[iwvl]}'] = results[f'ssa_{val_wvl[iwvl]}']
+          Results[f'Cal_ext_coef_dry_{val_wvl[iwvl]}'] = results[f'ext_coeff_{val_wvl[iwvl]}']        
+    
   return Results
 
-def Retr_kappa(full_wvl,optical_measurements,
+def Retr_kappa(full_wvl,
+  val_wvl, 
+  optical_measurements,
   sd,
   dpg,
   RH,
@@ -223,8 +241,20 @@ def Retr_kappa(full_wvl,optical_measurements,
           Results[f'Cal_sca_coef_wet_{full_wvl["Sc"][i2]}'] = results[f'ssa_{full_wvl["Sc"][i2]}']*results[f'ext_coeff_{full_wvl["Sc"][i2]}']
           Results[f'Cal_SSA_wet_{full_wvl["Sc"][i2]}'] = results[f'ssa_{full_wvl["Sc"][i2]}']
           Results[f'Cal_ext_coef_wet_{full_wvl["Sc"][i2]}'] = results[f'ext_coeff_{full_wvl["Sc"][i2]}']
-        stop_indx = 1
-
+        if val_wvl is not None:
+          wvl2 = None
+          for iwvl in range(len(val_wvl)):
+            if iwvl == 0:
+              wvl2 = val_wvl
+            else:
+              wvl2 = np.hstack((wvl2,val_wvl))
+          results = MMModel(wvl2,size_equ,sd,dpg_w,RRI_w,IRI_w,nonabs_fraction,shape,rho,0,0,num_theta,optical_dataset,path_mopsmap_executable) 
+          for iwvl in range(len(val_wvl)):
+            Results[f'Cal_sca_coef_dry_{val_wvl[iwvl]}'] = results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}']
+            Results[f'Cal_abs_coef_dry_{val_wvl[iwvl]}'] = results[f'ext_coeff_{val_wvl[iwvl]}']-results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}'] 
+            Results[f'Cal_SSA_dry_{val_wvl[iwvl]}'] = results[f'ssa_{val_wvl[iwvl]}']
+            Results[f'Cal_ext_coef_dry_{val_wvl[iwvl]}'] = results[f'ext_coeff_{val_wvl[iwvl]}']     
+        stop_indx = 1  
   return Results
 
 class InvalidNumberOfWavelengths(Exception):

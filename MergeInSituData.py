@@ -8,7 +8,7 @@ def Merge():
 		programPause = input("Press the <ENTER> key to continue...")
 
 
-	Data_List_Str = input("Enter the list of .ict data IDs to be merged\nseparated by commas (e.g., APS, UHSAS, MICROPHYSICAL, OPTICAL): ")   
+	Data_List_Str = input("Enter the list of .ict data IDs to be merged\nseparated by a comma and a space (e.g., APS, UHSAS, MICROPHYSICAL, OPTICAL): ")   
 	Data_List = np.array(Data_List_Str.split(", ")).astype(str)	
 	temporal_resolution = int(input("Enter the desired temporal resolution in seconds (e.g., 30): "))
 	separated_data = {}

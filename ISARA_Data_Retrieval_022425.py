@@ -72,13 +72,14 @@ def RunISARA():
     
 
     def handle_line(modelist, sd, dpg, dpu, dpl, UBcutoff, LBcutoff, measured_Sc_dry, measured_Abs_dry, measured_fRH,
-                        wvl, size_equ, CRI_p, nonabs_fraction, shape,
+                        full_wvl, val_wvl, size_equ, CRI_p, nonabs_fraction, shape,
                         kappa_p, num_theta, rho_wet, path_optical_dataset, path_mopsmap_executable, full_dp):
                     
         # So this code may look a bit funky, but we are doing what is called currying. This is simply the idea of returning a function inside of a function. 
         # It may look weird doing this, but this is actually required so that each worker has the necessary data. What ends up happening is each worker is 
         # passed a full copy of all the data contained within this function, so it has to know what data needs to be copied. Anyhow, the inner `curry` 
         # function is what is actually being called for each iteration of the for loop.
+        # You will notice that in the code we are assining the value for this row and they will be merged later
         def curry(i1):  
             finalout = {}
             #finalout['full_wvl'] = full_wvl
@@ -109,12 +110,10 @@ def RunISARA():
             else:
                 rho_dry = np.full((1, L1), 1)
                 peak = np.full((1, L1), np.nan)
-
-            # This is where things become a pain :( Since we are spreading the work across multiple cores, there is a copy of the data in each core. Therefore, we are not 
-            # able to easily make updates to the numpy arrays, so instead we will obtain the results for each line then join them together after the multiprocessing occurs.
+            finalout['rho_dry_g_cm-3'] = rho_dry
+            finalout['preak_diameter_um'] = peak
             finalout['attempt_count_CRI'] = 0
             finalout['attempt_count_kappa'] = 0
-            # You will notice that in the code, instead of doing things like CRI_dry[:, i1] = ..., we are instead just assining the value for this row instead and then they will be merged later
             dpflg = 0
             icount = 0
             Dpg = {}
@@ -170,16 +169,15 @@ def RunISARA():
                 fulldpflg = np.where((fulldpg>=full_dp["dpl"][idpg])&(fulldpg<=full_dp["dpu"][idpg]))[0]
                 if len(fulldpflg)>0:
                     full_sd[idpg] = fullsd[fulldpflg]
-            dpgcount = 0
-            for idpg in full_dp["dpg"]:
-                finalout[f'full_dndlogdp_{idpg}'] = full_sd[dpgcount]
-                dpgcount += 1        
+
+            for idpg in range(len(full_dp["dpg"])):
+                finalout[f'full_dndlogdp_{full_dp["dpl"][idpg]}-{full_dp["dpu"][idpg]}'] = full_sd[idpg]       
 
             #measflg = np.where((np.logical_not(np.isnan(meas_coef))&(meas_coef>10**(-6))))[0]
             #print(len(meas_coef))
             if (dpflg==icount) & (measflg == 6):
                 finalout['attempt_count_CRI'] = 1
-                Results = ISARA2.Retr_CRI(full_wvl, finalout, Dndlogdp, Dpg, CRI_p, Size_equ, 
+                Results = ISARA2.Retr_CRI(full_wvl, val_wvl, finalout, Dndlogdp, Dpg, CRI_p, Size_equ, 
                     Nonabs_fraction, Shape, Rho_dry, num_theta, path_optical_dataset, path_mopsmap_executable)    
 
                 if Results["RRI_dry"] is not None:
@@ -191,7 +189,7 @@ def RunISARA():
                     #if (RH_amb[i1].astype(str) != 'nan') and (measured_coef_wet[i1].astype(str) != 'nan'):
                     if np.logical_not(np.isnan(finalout[f'Meas_sca_coef_wet_550'])):
                         finalout['attempt_count_kappa'] = 1
-                        Results = ISARA2.Retr_kappa(full_wvl2, finalout, Dndlogdp, Dpg, 80, kappa_p, CRI_dry,
+                        Results = ISARA2.Retr_kappa(full_wvl2, val_wvl, finalout, Dndlogdp, Dpg, 80, kappa_p, CRI_dry,
                             Size_equ, Nonabs_fraction, Shape, Rho_wet, num_theta,
                             path_optical_dataset, path_mopsmap_executable)
                         
@@ -207,6 +205,11 @@ def RunISARA():
                                 finalout[f'Cal_sca_coef_wet_{full_wvl2["Sc"][i2]}'] = np.nan
                                 finalout[f'Cal_SSA_wet_{full_wvl2["Sc"][i2]}'] = np.nan
                                 finalout[f'Cal_ext_coef_wet_{full_wvl2["Sc"][i2]}'] = np.nan
+                            if val_wvl is not None:
+                                for i2 in range(len(val_wvl)):
+                                    finalout[f'Cal_sca_coef_wet_{val_wvl[i2]}'] = np.nan
+                                    finalout[f'Cal_SSA_wet_{val_wvl[i2]}'] = np.nan
+                                    finalout[f'Cal_ext_coef_wet_{val_wvl[i2]}'] = np.nan                                     
                 else:
                     finalout["RRI_dry"] = np.nan
                     finalout["IRI_dry"] = np.nan
@@ -217,6 +220,11 @@ def RunISARA():
                         finalout[f'Cal_SSA_dry_{full_wvl["Abs"][i2]}'] = np.nan
                         finalout[f'Cal_ext_coef_dry_{full_wvl["Sc"][i2]}'] = np.nan
                         finalout[f'Cal_ext_coef_dry_{full_wvl["Abs"][i2]}'] = np.nan
+                    if val_wvl is not None:
+                        for i2 in range(len(val_wvl)):
+                            finalout[f'Cal_sca_coef_dry_{val_wvl[i2]}'] = np.nan
+                            finalout[f'Cal_SSA_dry_{val_wvl[i2]}'] = np.nan
+                            finalout[f'Cal_ext_coef_dry_{val_wvl[i2]}'] = np.nan                       
             else:
                     finalout["RRI_dry"] = np.nan
                     finalout["IRI_dry"] = np.nan
@@ -227,13 +235,22 @@ def RunISARA():
                         finalout[f'Cal_SSA_dry_{full_wvl["Abs"][i2]}'] = np.nan
                         finalout[f'Cal_ext_coef_dry_{full_wvl["Sc"][i2]}'] = np.nan
                         finalout[f'Cal_ext_coef_dry_{full_wvl["Abs"][i2]}'] = np.nan
-
+  
                     finalout[f'Cal_fRH'] = np.nan
                     finalout[f'Kappa'] = np.nan
                     for i2 in range(len(full_wvl2["Sc"])):
                         finalout[f'Cal_sca_coef_wet_{full_wvl2["Sc"][i2]}'] = np.nan
                         finalout[f'Cal_SSA_wet_{full_wvl2["Sc"][i2]}'] = np.nan
-                        finalout[f'Cal_ext_coef_wet_{full_wvl2["Sc"][i2]}'] = np.nan                        
+                        finalout[f'Cal_ext_coef_wet_{full_wvl2["Sc"][i2]}'] = np.nan   
+
+                    if val_wvl is not None:
+                        for i2 in range(len(val_wvl)):
+                            finalout[f'Cal_sca_coef_dry_{val_wvl[i2]}'] = np.nan
+                            finalout[f'Cal_SSA_dry_{val_wvl[i2]}'] = np.nan
+                            finalout[f'Cal_ext_coef_dry_{val_wvl[i2]}'] = np.nan    
+                            finalout[f'Cal_sca_coef_wet_{val_wvl[i2]}'] = np.nan
+                            finalout[f'Cal_SSA_wet_{val_wvl[i2]}'] = np.nan
+                            finalout[f'Cal_ext_coef_wet_{val_wvl[i2]}'] = np.nan                                                           
             return (finalout)   
 
         return curry    
@@ -311,6 +328,14 @@ def RunISARA():
     for iwvl in range(numwvl):
         full_wvl["Sc"][iwvl]  = input(f"Enter scattering wavelength associated with channel {iwvl+1} in nm (e.g., 450): ")
         full_wvl["Abs"][iwvl] = input(f"Enter absorption wavelength associated with channel {iwvl+1} in nm (e.g., 465): ")
+
+    addwvl = input(f"Are there any additional wavelengths needed? (yes or no): ")
+    if addwvl == "yes":
+        valwvl =  input(f"Enter the additional wavelength channels speparated\nby a comma and a space (e.g., 370, 530, 1060): ")
+        val_wvl =  np.array(valwvl.split(", ")).astype(int)
+    else:
+        val_wvl = None
+
     IFN = [f for f in os.listdir(f'./misc/{DN}/InsituData/') if f.endswith('.ict')]
     for input_filename in IFN:#[156:]:
         print(input_filename)
@@ -334,7 +359,7 @@ def RunISARA():
             line_data = pool.map(
                 # This is a pain, I know, but all the data has to be cloned and accessible within each worker
                 handle_line(modelist, sd, dpg, dpu, dpl, UBcutoff, LBcutoff, Sc, Abs,
-                            fRH, full_wvl, size_equ, CRI_p, nonabs_fraction, shape,
+                            fRH, full_wvl, val_wvl, size_equ, CRI_p, nonabs_fraction, shape,
                             kappa_p, num_theta, rho_wet, path_optical_dataset, path_mopsmap_executable, full_dp),
                 range(L1),
             )

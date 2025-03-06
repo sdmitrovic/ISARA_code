@@ -89,6 +89,7 @@ def RunISARA():
         # It may look weird doing this, but this is actually required so that each worker has the necessary data. What ends up happening is each worker is 
         # passed a full copy of all the data contained within this function, so it has to know what data needs to be copied. Anyhow, the inner `curry` 
         # function is what is actually being called for each iteration of the for loop.
+        # You will notice that in the code we are assining the value for this row and they will be merged later
         def curry(i1):  
             finalout = {}
             #finalout['full_wvl'] = full_wvl
@@ -115,11 +116,10 @@ def RunISARA():
             else:
                 rho_dry = np.full((1, L1), 1)
                 peak = np.full((1, L1), np.nan)
-
-            # This is where things become a pain :( Since we are spreading the work across multiple cores, there is a copy of the data in each core. Therefore, we are not 
-            # able to easily make updates to the numpy arrays, so instead we will obtain the results for each line then join them together after the multiprocessing occurs.
+            finalout['rho_dry_g_cm-3'] = rho_dry
+            finalout['preak_diameter_um'] = peak
             finalout['attempt_count_CRI'] = 0
-            # You will notice that in the code, instead of doing things like CRI_dry[:, i1] = ..., we are instead just assining the value for this row instead and then they will be merged later
+            
             dpflg = 0
             icount = 0
             Dpg = {}
@@ -175,16 +175,15 @@ def RunISARA():
                 fulldpflg = np.where((fulldpg>=full_dp["dpl"][idpg])&(fulldpg<=full_dp["dpu"][idpg]))[0]
                 if len(fulldpflg)>0:
                     full_sd[idpg] = fullsd[fulldpflg]
-            dpgcount = 0
-            for idpg in full_dp["dpg"]:
-                finalout[f'full_dndlogdp_{idpg}'] = full_sd[dpgcount]
-                dpgcount += 1        
+
+            for idpg in range(len(full_dp["dpg"])):
+                finalout[f'full_dndlogdp_{full_dp["dpl"][idpg]}-{full_dp["dpu"][idpg]}'] = full_sd[idpg]             
 
             #measflg = np.where((np.logical_not(np.isnan(meas_coef))&(meas_coef>10**(-6))))[0]
             #print(len(meas_coef))
             if (dpflg==icount) & (measflg == 6):
                 finalout['attempt_count_CRI'] = 1
-                Results = ISARA2.Retr_CRI(full_wvl, finalout, Dndlogdp, Dpg, CRI_p, Size_equ, 
+                Results = ISARA2.Retr_CRI(full_wvl, None, finalout, Dndlogdp, Dpg, CRI_p, Size_equ, 
                     Nonabs_fraction, Shape, Rho_dry, num_theta, path_optical_dataset, path_mopsmap_executable)    
 
                 if Results["RRI_dry"] is not None:
