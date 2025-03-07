@@ -129,6 +129,14 @@ def Model(wvl,size_equ,dndlogdp,dpg,RRI,IRI,nonabs_fraction,shape,density,RH,kap
   results['n'] = output_integrated['n'][0]
   results['a'] = output_integrated['a'][0]
   results['v'] = output_integrated['v'][0]
+  a1 = output_matrix['a1'].reshape((num_wvl,num_angles))
+  a2 = output_matrix['a2'].reshape((num_wvl,num_angles))
+  a3 = output_matrix['a3'].reshape((num_wvl,num_angles))
+  a4 = output_matrix['a4'].reshape((num_wvl,num_angles))
+  b1 = output_matrix['b1'].reshape((num_wvl,num_angles))
+  b2 = output_matrix['b2'].reshape((num_wvl,num_angles))
+  a1_vol = output_vol_scat['a1_vol'].reshape((num_wvl,num_angles))  
+
   if num_wvl > 0:
     for i1 in range(num_wvl): 
       results[f'ext_coeff_{wvl[i1]}'] = output_integrated['ext_coeff'][i1]
@@ -142,27 +150,39 @@ def Model(wvl,size_equ,dndlogdp,dpg,RRI,IRI,nonabs_fraction,shape,density,RH,kap
       results[f'S_{wvl[i1]}'] = output_lidar['S'][i1]
       results[f'delta_l_{wvl[i1]}'] = output_lidar['delta_l'][i1]
       results[f'back_angstrom_{wvl[i1]}'] = output_lidar['back_angstrom'][i1]
+
   else:
-    results[f'ext_coeff_{wvl[i1]}'] = output_integrated['ext_coeff'][0]
-    results[f'm_{wvl[i1]}'] = output_integrated['m'][0]  
-    results[f'ssa_{wvl[i1]}'] = output_integrated['ssa'][0]
-    results[f'g_{wvl[i1]}'] = output_integrated['g'][0]
-    results[f'ext_angstrom_{wvl[i1]}'] = output_integrated['ext_angstrom'][0]
-    results[f'sca_angstrom_{wvl[i1]}'] = output_integrated['sca_angstrom'][0]
-    results[f'abs_angstrom_{wvl[i1]}'] = output_integrated['abs_angstrom'][0]
-    results[f'back_coeff_{wvl[i1]}'] = output_lidar['back_coeff'][0]
-    results[f'S_{wvl[i1]}'] = output_lidar['S'][0]
-    results[f'delta_l_{wvl[i1]}'] = output_lidar['delta_l'][0]
-    results[f'back_angstrom_{wvl[i1]}'] = output_lidar['back_angstrom'][0]    
-#    results['angle'] = output_matrix['angle'][0:num_angles]
-#    results['a1'] = output_matrix['a1'].reshape((num_wvl,num_angles))
-#    results['a2'] = output_matrix['a2'].reshape((num_wvl,num_angles))
-#    results['a3'] = output_matrix['a3'].reshape((num_wvl,num_angles))
-#    results['a4'] = output_matrix['a4'].reshape((num_wvl,num_angles))
-#    results['b1'] = output_matrix['b1'].reshape((num_wvl,num_angles))
-#    results['b2'] = output_matrix['b2'].reshape((num_wvl,num_angles))
-#    results['a1_vol'] = output_vol_scat['a1_vol'].reshape((num_wvl,num_angles))
-  
+    results[f'ext_coeff_{wvl[0]}'] = output_integrated['ext_coeff'][0]
+    results[f'm_{wvl[0]}'] = output_integrated['m'][0]  
+    results[f'ssa_{wvl[0]}'] = output_integrated['ssa'][0]
+    results[f'g_{wvl[0]}'] = output_integrated['g'][0]
+    results[f'ext_angstrom_{wvl[0]}'] = output_integrated['ext_angstrom'][0]
+    results[f'sca_angstrom_{wvl[0]}'] = output_integrated['sca_angstrom'][0]
+    results[f'abs_angstrom_{wvl[0]}'] = output_integrated['abs_angstrom'][0]
+    results[f'back_coeff_{wvl[0]}'] = output_lidar['back_coeff'][0]
+    results[f'S_{wvl[0]}'] = output_lidar['S'][0]
+    results[f'delta_l_{wvl[0]}'] = output_lidar['delta_l'][0]
+    results[f'back_angstrom_{wvl[0]}'] = output_lidar['back_angstrom'][0]    
+    results['angle'] = output_matrix['angle'][0:num_angles]
+    if num_angles > 0:
+      for iangle in range(num_angles):    
+        ang = output_matrix['angle'][iangle] 
+        results[f'a1_{wvl[0]}_{ang}'] = a1[0,iangle]
+        results[f'a2_{wvl[0]}_{ang}'] = a2[0,iangle]
+        results[f'a3_{wvl[0]}_{ang}'] = a3[0,iangle]
+        results[f'a4_{wvl[0]}_{ang}'] = a4[0,iangle]
+        results[f'b1_{wvl[0]}_{ang}'] = b1[0,iangle]
+        results[f'b2_{wvl[0]}_{ang}'] = b2[0,iangle]
+        results[f'a1_{wvl[0]}_vol_{ang}'] = a1_vol[0,iangle]
+    else:
+        ang = output_matrix['angle'][0] 
+        results[f'a1_{wvl[0]}_{ang}'] = a1[0,0]
+        results[f'a2_{wvl[0]}_{ang}'] = a2[0,0]
+        results[f'a3_{wvl[0]}_{ang}'] = a3[0,0]
+        results[f'a4_{wvl[0]}_{ang}'] = a4[0,0]
+        results[f'b1_{wvl[0]}_{ang}'] = b1[0,0]
+        results[f'b2_{wvl[0]}_{ang}'] = b2[0,0]
+        results[f'a1_{wvl[0]}_vol_{ang}'] = a1_vol[0,0]  
   
   for key in dndlogdp:
     if modeflag[key]==1:

@@ -96,12 +96,12 @@ def RunISARA():
             measflg = 0 
             Lwvl = len(full_wvl["Sc"])
             for iwvl in range(Lwvl): 
-                finalout[f'Meas_sca_coef_dry_{full_wvl["Sc"][iwvl]}'] = np.multiply(measured_Sc_dry[f'{full_wvl["Sc"][iwvl]}'][i1], pow(10, -6))
-                finalout[f'Meas_abs_coef_dry_{full_wvl["Abs"][iwvl]}'] = np.multiply(measured_Abs_dry[f'{full_wvl["Abs"][iwvl]}'][i1], pow(10, -6))
+                finalout[f'Meas_sca_coef_dry_{full_wvl["Sc"][iwvl]}_m-1'] = np.multiply(measured_Sc_dry[f'{full_wvl["Sc"][iwvl]}'][i1], pow(10, -6))
+                finalout[f'Meas_abs_coef_dry_{full_wvl["Abs"][iwvl]}_m-1'] = np.multiply(measured_Abs_dry[f'{full_wvl["Abs"][iwvl]}'][i1], pow(10, -6))
 
-                if (np.logical_not(np.isnan(finalout[f'Meas_sca_coef_dry_{full_wvl["Sc"][iwvl]}']))&(finalout[f'Meas_sca_coef_dry_{full_wvl["Sc"][iwvl]}']>10**(-6))):
+                if (np.logical_not(np.isnan(finalout[f'Meas_sca_coef_dry_{full_wvl["Sc"][iwvl]}_m-1']))&(finalout[f'Meas_sca_coef_dry_{full_wvl["Sc"][iwvl]}_m-1']>10**(-6))):
                     measflg += 1
-                if (np.logical_not(np.isnan(finalout[f'Meas_abs_coef_dry_{full_wvl["Abs"][iwvl]}']))&(finalout[f'Meas_abs_coef_dry_{full_wvl["Abs"][iwvl]}']>10**(-6))):
+                if (np.logical_not(np.isnan(finalout[f'Meas_abs_coef_dry_{full_wvl["Abs"][iwvl]}_m-1']))&(finalout[f'Meas_abs_coef_dry_{full_wvl["Abs"][iwvl]}_m-1']>10**(-6))):
                     measflg += 1 
 
 
@@ -177,7 +177,7 @@ def RunISARA():
                     full_sd[idpg] = fullsd[fulldpflg]
 
             for idpg in range(len(full_dp["dpg"])):
-                finalout[f'full_dndlogdp_{full_dp["dpl"][idpg]}-{full_dp["dpu"][idpg]}'] = full_sd[idpg]             
+                finalout[f'full_dndlogdp_{full_dp["dpl"][idpg]}-{full_dp["dpu"][idpg]}_cm-3)'] = full_sd[idpg]             
 
             #measflg = np.where((np.logical_not(np.isnan(meas_coef))&(meas_coef>10**(-6))))[0]
             #print(len(meas_coef))
@@ -195,22 +195,22 @@ def RunISARA():
                     finalout["RRI_dry"] = np.nan
                     finalout["IRI_dry"] = np.nan
                     for i2 in range(Lwvl):
-                        finalout[f'Cal_sca_coef_dry_{full_wvl["Sc"][i2]}'] = np.nan
-                        finalout[f'Cal_abs_coef_dry_{full_wvl["Abs"][i2]}'] = np.nan
+                        finalout[f'Cal_sca_coef_dry_{full_wvl["Sc"][i2]}_m-1'] = np.nan
+                        finalout[f'Cal_abs_coef_dry_{full_wvl["Abs"][i2]}_m-1'] = np.nan
                         finalout[f'Cal_SSA_dry_{full_wvl["Sc"][i2]}'] = np.nan
                         finalout[f'Cal_SSA_dry_{full_wvl["Abs"][i2]}'] = np.nan
-                        finalout[f'Cal_ext_coef_dry_{full_wvl["Sc"][i2]}'] = np.nan
-                        finalout[f'Cal_ext_coef_dry_{full_wvl["Abs"][i2]}'] = np.nan
+                        finalout[f'Cal_ext_coef_dry_{full_wvl["Sc"][i2]}_m-1'] = np.nan
+                        finalout[f'Cal_ext_coef_dry_{full_wvl["Abs"][i2]}_m-1'] = np.nan
             else:
                     finalout["RRI_dry"] = np.nan
                     finalout["IRI_dry"] = np.nan
                     for i2 in range(Lwvl):
-                        finalout[f'Cal_sca_coef_dry_{full_wvl["Sc"][i2]}'] = np.nan
-                        finalout[f'Cal_abs_coef_dry_{full_wvl["Abs"][i2]}'] = np.nan
+                        finalout[f'Cal_sca_coef_dry_{full_wvl["Sc"][i2]}_m-1'] = np.nan
+                        finalout[f'Cal_abs_coef_dry_{full_wvl["Abs"][i2]}_m-1'] = np.nan
                         finalout[f'Cal_SSA_dry_{full_wvl["Sc"][i2]}'] = np.nan
                         finalout[f'Cal_SSA_dry_{full_wvl["Abs"][i2]}'] = np.nan
-                        finalout[f'Cal_ext_coef_dry_{full_wvl["Sc"][i2]}'] = np.nan
-                        finalout[f'Cal_ext_coef_dry_{full_wvl["Abs"][i2]}'] = np.nan
+                        finalout[f'Cal_ext_coef_dry_{full_wvl["Sc"][i2]}_m-1'] = np.nan
+                        finalout[f'Cal_ext_coef_dry_{full_wvl["Abs"][i2]}_m-1'] = np.nan
                  
             return (finalout)   
 
