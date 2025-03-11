@@ -177,7 +177,7 @@ def RunISARA():
                     full_sd[idpg] = fullsd[fulldpflg]
 
             for idpg in range(len(full_dp["dpg"])):
-                finalout[f'full_dndlogdp_{full_dp["dpl"][idpg]}-{full_dp["dpu"][idpg]}_cm-3)'] = full_sd[idpg]             
+                finalout[f'dry_dndlogdp_{full_dp["dpl"][idpg]}-{full_dp["dpu"][idpg]}_cm-3)'] = full_sd[idpg]             
 
             #measflg = np.where((np.logical_not(np.isnan(meas_coef))&(meas_coef>10**(-6))))[0]
             #print(len(meas_coef))
