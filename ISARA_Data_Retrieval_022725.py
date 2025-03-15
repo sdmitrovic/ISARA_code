@@ -114,7 +114,7 @@ def RunISARA():
                 rho_dry = output_dictionary_1["rho"]
                 peak = output_dictionary_1["peak"]
             else:
-                rho_dry = np.full((1, L1), 1)
+                rho_dry = np.full((1, L1), 1.63)
                 peak = np.full((1, L1), np.nan)
             finalout['rho_dry_g_cm-3'] = rho_dry
             finalout['preak_diameter_um'] = peak
@@ -177,7 +177,7 @@ def RunISARA():
                     full_sd[idpg] = fullsd[fulldpflg]
 
             for idpg in range(len(full_dp["dpg"])):
-                finalout[f'dry_dndlogdp_{full_dp["dpl"][idpg]}-{full_dp["dpu"][idpg]}_cm-3)'] = full_sd[idpg]             
+                finalout[f'dndlogdp_bin{idpg}_cm-3)'] = full_sd[idpg]             
 
             #measflg = np.where((np.logical_not(np.isnan(meas_coef))&(meas_coef>10**(-6))))[0]
             #print(len(meas_coef))

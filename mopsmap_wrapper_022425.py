@@ -124,6 +124,7 @@ def Model(wvl,size_equ,dndlogdp,dpg,RRI,IRI,nonabs_fraction,shape,density,RH,kap
   # store the results in an easier-to-use way
   num_wvl = output_integrated['wvl'].shape[0]
   num_angles = output_matrix['angle'].shape[0]//num_wvl
+
   results = {}
   results['r_eff'] = output_integrated['r_eff'][0]  
   results['n'] = output_integrated['n'][0]
@@ -139,50 +140,49 @@ def Model(wvl,size_equ,dndlogdp,dpg,RRI,IRI,nonabs_fraction,shape,density,RH,kap
 
   if num_wvl > 0:
     for i1 in range(num_wvl): 
-      results[f'ext_coeff_{wvl[i1]}'] = output_integrated['ext_coeff'][i1]
+      results[f'ext_coeff_{wvl[i1]}_m-1'] = output_integrated['ext_coeff'][i1]
       results[f'm_{wvl[i1]}'] = output_integrated['m'][i1]  
       results[f'ssa_{wvl[i1]}'] = output_integrated['ssa'][i1]
       results[f'g_{wvl[i1]}'] = output_integrated['g'][i1]
       results[f'ext_angstrom_{wvl[i1]}'] = output_integrated['ext_angstrom'][i1]
       results[f'sca_angstrom_{wvl[i1]}'] = output_integrated['sca_angstrom'][i1]
       results[f'abs_angstrom_{wvl[i1]}'] = output_integrated['abs_angstrom'][i1]
-      results[f'back_coeff_{wvl[i1]}'] = output_lidar['back_coeff'][i1]
-      results[f'S_{wvl[i1]}'] = output_lidar['S'][i1]
+      results[f'back_coeff_{wvl[i1]}_m-1'] = output_lidar['back_coeff'][i1]
+      results[f'lidar_ratio_{wvl[i1]}'] = output_lidar['S'][i1]
       results[f'delta_l_{wvl[i1]}'] = output_lidar['delta_l'][i1]
       results[f'back_angstrom_{wvl[i1]}'] = output_lidar['back_angstrom'][i1]
-
+      for iangle in range(num_angles):    
+        ang = output_matrix['angle'][iangle]
+        results[f'a1_{wvl[i1]}_{ang}'] = a1[i1,iangle]
+        results[f'a2_{wvl[i1]}_{ang}'] = a2[i1,iangle]
+        results[f'a3_{wvl[i1]}_{ang}'] = a3[i1,iangle]
+        results[f'a4_{wvl[i1]}_{ang}'] = a4[i1,iangle]
+        results[f'b1_{wvl[i1]}_{ang}'] = b1[i1,iangle]
+        results[f'b2_{wvl[i1]}_{ang}'] = b2[i1,iangle]
+        results[f'a1_vol_{wvl[i1]}_{ang}'] = a1_vol[i1,iangle]
+ 
   else:
-    results[f'ext_coeff_{wvl[0]}'] = output_integrated['ext_coeff'][0]
+    results[f'ext_coeff_{wvl[0]}_m-1'] = output_integrated['ext_coeff'][0]
     results[f'm_{wvl[0]}'] = output_integrated['m'][0]  
     results[f'ssa_{wvl[0]}'] = output_integrated['ssa'][0]
     results[f'g_{wvl[0]}'] = output_integrated['g'][0]
     results[f'ext_angstrom_{wvl[0]}'] = output_integrated['ext_angstrom'][0]
     results[f'sca_angstrom_{wvl[0]}'] = output_integrated['sca_angstrom'][0]
     results[f'abs_angstrom_{wvl[0]}'] = output_integrated['abs_angstrom'][0]
-    results[f'back_coeff_{wvl[0]}'] = output_lidar['back_coeff'][0]
-    results[f'S_{wvl[0]}'] = output_lidar['S'][0]
+    results[f'back_coeff_{wvl[0]}_m-1'] = output_lidar['back_coeff'][0]
+    results[f'lidar_ratio_{wvl[0]}'] = output_lidar['S'][0]
     results[f'delta_l_{wvl[0]}'] = output_lidar['delta_l'][0]
     results[f'back_angstrom_{wvl[0]}'] = output_lidar['back_angstrom'][0]    
-    results['angle'] = output_matrix['angle'][0:num_angles]
-    if num_angles > 0:
-      for iangle in range(num_angles):    
-        ang = output_matrix['angle'][iangle] 
-        results[f'a1_{wvl[0]}_{ang}'] = a1[0,iangle]
-        results[f'a2_{wvl[0]}_{ang}'] = a2[0,iangle]
-        results[f'a3_{wvl[0]}_{ang}'] = a3[0,iangle]
-        results[f'a4_{wvl[0]}_{ang}'] = a4[0,iangle]
-        results[f'b1_{wvl[0]}_{ang}'] = b1[0,iangle]
-        results[f'b2_{wvl[0]}_{ang}'] = b2[0,iangle]
-        results[f'a1_{wvl[0]}_vol_{ang}'] = a1_vol[0,iangle]
-    else:
-        ang = output_matrix['angle'][0] 
-        results[f'a1_{wvl[0]}_{ang}'] = a1[0,0]
-        results[f'a2_{wvl[0]}_{ang}'] = a2[0,0]
-        results[f'a3_{wvl[0]}_{ang}'] = a3[0,0]
-        results[f'a4_{wvl[0]}_{ang}'] = a4[0,0]
-        results[f'b1_{wvl[0]}_{ang}'] = b1[0,0]
-        results[f'b2_{wvl[0]}_{ang}'] = b2[0,0]
-        results[f'a1_{wvl[0]}_vol_{ang}'] = a1_vol[0,0]  
+    results['angle'] = output_matrix['angle'][0:num_angles] 
+    for iangle in range(num_angles):    
+      ang = output_matrix['angle'][iangle]
+      results[f'a1_{wvl[0]}_{ang}'] = a1[0,iangle]
+      results[f'a2_{wvl[0]}_{ang}'] = a2[0,iangle]
+      results[f'a3_{wvl[0]}_{ang}'] = a3[0,iangle]
+      results[f'a4_{wvl[0]}_{ang}'] = a4[0,iangle]
+      results[f'b1_{wvl[0]}_{ang}'] = b1[0,iangle]
+      results[f'b2_{wvl[0]}_{ang}'] = b2[0,iangle]
+      results[f'a1_vol_{wvl[0]}_{ang}'] = a1_vol[0,iangle]
   
   for key in dndlogdp:
     if modeflag[key]==1:
