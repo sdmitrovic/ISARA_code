@@ -116,7 +116,7 @@ def RunISARA():
             else:
                 rho_dry = np.full((1, L1), 1.63)
                 peak = np.full((1, L1), np.nan)
-            finalout['rho_dry_g_cm-3'] = rho_dry
+            finalout['rho_dry_g.cm-3'] = rho_dry
             finalout['preak_diameter_um'] = peak
             finalout['attempt_count_CRI'] = 0
             

@@ -53,16 +53,24 @@ def imp(filename, num_time_columns):
     rawdata = g[vr_id::] # create raw data array starting at data start row
 
     # create empty string arrays for final variable names, units, and extra info
-    var_names = ["" for x in range(len(full_var_titles))]
+    var_shortnames = ["" for x in range(len(full_var_titles))]
     var_units = ["" for x in range(len(full_var_titles))]
+    var_macienames = ["" for x in range(len(full_var_titles))]
+    var_longnames = ["" for x in range(len(full_var_titles))]
+    #var_fillvalues = fv
 
     # iteratively fill string arrays with final variable names, units, and extra info
     for i1 in np.arange(0,len(full_var_titles)).reshape(-1):
         fvt = full_var_titles[i1]
-        FVT = np.array(fvt.split(","))
-        var_names[i1] = FVT[0]
-        var_units[i1] = FVT[1]
-        
+        FVT = np.array(fvt.split(", "))
+        var_shortnames[i1] = FVT[0].strip()
+        var_units[i1] = FVT[1].strip()
+        var_macienames[i1] = FVT[2].strip()
+        if len(FVT)>3:
+            var_longnames[i1] = FVT[3] 
+        else:
+            var_longnames[i1] = 'N/A'       
+
     # create data arraw with length of dataset and width of number of variables       
     data = np.zeros((len(rawdata),len(full_var_titles)))
 
@@ -70,22 +78,28 @@ def imp(filename, num_time_columns):
     for i1 in np.arange(0,len(rawdata)).reshape(-1):
         processdata1 = rawdata[i1]
         processdata2 = np.array(processdata1.split(",")).astype(float)
-        for i2 in np.arange(0,len(processdata2)-1):
+        for i2 in np.arange(1,len(processdata2)):
             if not processdata2[i2]:
                 processdata2[i2] = np.nan
-            elif processdata2[i2] == fv[i2]:
+            elif processdata2[i2] == fv[i2-1]:
                 processdata2[i2] = np.nan
         data[i1,:] = processdata2
-    
+
     # creat empty dictionary
     output_dictionary = {}
-
+    output_dictionary['VariableAttributes']={}
     # fill dictionary with data and keys   
-    for i1 in range(len(full_var_titles)):
-        output_dictionary[("%s_%s"%(var_names[i1],var_units[i1]))] = data[:,i1]
+    for i1 in range(len(full_var_titles)-num_time_columns):
+        dict_name = "%s_%s"%(var_shortnames[i1+num_time_columns],var_units[i1+num_time_columns])
+        output_dictionary[dict_name] = data[:,i1+num_time_columns]
+        output_dictionary['VariableAttributes'][dict_name] = {}
+        output_dictionary['VariableAttributes'][dict_name]['short_name'] = var_shortnames[i1+num_time_columns]
+        output_dictionary['VariableAttributes'][dict_name]['units'] = var_units[i1+num_time_columns]
+        output_dictionary['VariableAttributes'][dict_name]['long_name'] = var_longnames[i1+num_time_columns]
+        output_dictionary['VariableAttributes'][dict_name]['MACIE_standard_name'] = var_macienames[i1+num_time_columns]
 
-    output_dictionary["deployement"] = str(g[4]) # Add date to dictionary      
-    output_dictionary["date"] = np.array(DATE).astype(str) # Add date to dictionary  
+    #output_dictionary["deployement"] = str(g[4]) # Add date to dictionary      
+    #output_dictionary["date"] = np.array(DATE).astype(str) # Add date to dictionary  
     dta = data[:,range(num_time_columns)] # fill dictionary with date 
     mattimedata = dict()# create array of zeros for datetime data
     SAMtime = np.full((len(dta[:,0]),len(dta[0,:])),np.nan)
@@ -125,13 +139,44 @@ def imp(filename, num_time_columns):
     # Add frmttimedata and mattimedata to dictionary   
 
     if num_time_columns == 1:
-        output_dictionary['Time_Start_Seconds'] = SAMtime  
-        output_dictionary["fmtdatetime_Start"] = frmttimedata 
+        output_dictionary['Time_Start_Seconds'] = SAMtime        
+        output_dictionary['VariableAttributes']['Time_Start_Seconds'] = {}
+        output_dictionary['VariableAttributes']['Time_Start_Seconds']['short_name'] = var_shortnames[0]
+        output_dictionary['VariableAttributes']['Time_Start_Seconds']['units'] = var_units[0]
+        output_dictionary['VariableAttributes']['Time_Start_Seconds']['long_name'] = var_longnames[0]
+        output_dictionary['VariableAttributes']['Time_Start_Seconds']['MACIE_standard_name'] = var_macienames[0]  
+        output_dictionary["datetime_Start_UTC"] = frmttimedata 
+        output_dictionary['VariableAttributes']['datetime_Start_UTC'] = {}
+        output_dictionary['VariableAttributes']['datetime_Start_UTC']['short_name'] = 'datetime_Start'
+        output_dictionary['VariableAttributes']['datetime_Start_UTC']['units'] = 'UTC'
+        output_dictionary['VariableAttributes']['datetime_Start_UTC']['long_name'] = 'datetime stamp of corresponding to sample time.'
+        output_dictionary['VariableAttributes']['datetime_Start_UTC']['MACIE_standard_name'] = 'datetime'         
     else:
         output_dictionary['Time_Start_Seconds'] = SAMtime[:,0]
+        output_dictionary['VariableAttributes']['Time_Start_Seconds'] = {}
+        output_dictionary['VariableAttributes']['Time_Start_Seconds']['short_name'] = var_shortnames[0]
+        output_dictionary['VariableAttributes']['Time_Start_Seconds']['units'] = var_units[0]
+        output_dictionary['VariableAttributes']['Time_Start_Seconds']['long_name'] = var_longnames[0]
+        output_dictionary['VariableAttributes']['Time_Start_Seconds']['MACIE_standard_name'] = var_macienames[0]          
         output_dictionary['Time_Stop_Seconds'] = SAMtime[:,1]
-        output_dictionary["fmtdatetime_Start"] = frmttimedata[:,0]  
-        output_dictionary["fmtdatetime_Stop"] = frmttimedata[:,1]  
+        output_dictionary['VariableAttributes']['Time_Stop_Seconds'] = {}
+        output_dictionary['VariableAttributes']['Time_Stop_Seconds']['short_name'] = var_shortnames[1]
+        output_dictionary['VariableAttributes']['Time_Stop_Seconds']['units'] = var_units[1]
+        output_dictionary['VariableAttributes']['Time_Stop_Seconds']['long_name'] = var_longnames[1]
+        output_dictionary['VariableAttributes']['Time_Stop_Seconds']['MACIE_standard_name'] = var_macienames[1]          
+        output_dictionary["datetime_Start_UTC"] = frmttimedata[:,0]  
+        output_dictionary['VariableAttributes']['datetime_Start_UTC'] = {}
+        output_dictionary['VariableAttributes']['datetime_Start_UTC']['short_name'] = 'datetime_Start'
+        output_dictionary['VariableAttributes']['datetime_Start_UTC']['units'] = 'UTC'
+        output_dictionary['VariableAttributes']['datetime_Start_UTC']['long_name'] = 'datetime stamp of corresponding to sample start time.'
+        output_dictionary['VariableAttributes']['datetime_Start_UTC']['MACIE_standard_name'] = 'datetime_start'         
+        output_dictionary["datetime_Stop_UTC"] = frmttimedata[:,1]  
+        output_dictionary['VariableAttributes']['datetime_Stop_UTC'] = {}
+        output_dictionary['VariableAttributes']['datetime_Stop_UTC']['short_name'] = 'datetime_Stop'
+        output_dictionary['VariableAttributes']['datetime_Stop_UTC']['units'] = 'UTC'
+        output_dictionary['VariableAttributes']['datetime_Stop_UTC']['long_name'] = 'datetime stamp of corresponding to sample stop time.'
+        output_dictionary['VariableAttributes']['datetime_Stop_UTC']['MACIE_standard_name'] = 'datetime_stop'
+         
     G.close() # close data file      
     return output_dictionary
     ##

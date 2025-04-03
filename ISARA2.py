@@ -62,16 +62,15 @@ def Retr_CRI(full_wvl,
   iri = np.full((L1), np.nan)
   rri = np.full((L1), np.nan)
   Results = dict()  
-  Results["RRI_dry"] = None
-  Results["IRI_dry"] = None
-  Results["SSA"] = None
+  Results["dry_RRI_unitless"] = None
+  Results["dry_IRI_unitless"] = None
   for i2 in range(L2):
-    Results[f'Cal_sca_coef_dry_{full_wvl["Sc"][i2]}_m-1'] = None
-    Results[f'Cal_abs_coef_dry_{full_wvl["Abs"][i2]}_m-1'] = None
-    Results[f'Cal_SSA_dry_{full_wvl["Sc"][i2]}'] = None
-    Results[f'Cal_SSA_dry_{full_wvl["Abs"][i2]}'] = None
-    Results[f'Cal_ext_coef_dry_{full_wvl["Sc"][i2]}_m-1'] = None
-    Results[f'Cal_ext_coef_dry_{full_wvl["Abs"][i2]}_m-1'] = None
+    Results[f'dry_cal_sca_coef_{full_wvl["Sc"][i2]}_m-1'] = None
+    Results[f'dry_cal_abs_coef_{full_wvl["Abs"][i2]}_m-1'] = None
+    Results[f'dry_cal_SSA_{full_wvl["Sc"][i2]}_unitless'] = None
+    Results[f'dry_cal_SSA_{full_wvl["Abs"][i2]}_unitless'] = None
+    Results[f'dry_cal_ext_coef_{full_wvl["Sc"][i2]}_m-1'] = None
+    Results[f'dry_cal_ext_coef_{full_wvl["Abs"][i2]}_m-1'] = None
 
   for i1 in range(L1):
     RRI_p = {}
@@ -87,8 +86,8 @@ def Retr_CRI(full_wvl,
     for i2 in range(L2):
       scat_coef[i2] = results[f'ssa_{full_wvl["Sc"][i2]}']*results[f'ext_coeff_{full_wvl["Sc"][i2]}_m-1']
       abs_coef[i2] = results[f'ext_coeff_{full_wvl["Abs"][i2]}_m-1']-results[f'ssa_{full_wvl["Abs"][i2]}']*results[f'ext_coeff_{full_wvl["Abs"][i2]}_m-1'] 
-      ref_scat_coef[i2] = optical_measurements[f'Meas_sca_coef_dry_{full_wvl["Sc"][i2]}_m-1']
-      ref_abs_coef[i2] = optical_measurements[f'Meas_abs_coef_dry_{full_wvl["Abs"][i2]}_m-1']
+      ref_scat_coef[i2] = optical_measurements[f'dry_meas_sca_coef_{full_wvl["Sc"][i2]}_m-1']
+      ref_abs_coef[i2] = optical_measurements[f'dry_meas_abs_coef_{full_wvl["Abs"][i2]}_m-1']
     Cdif1 = abs(ref_scat_coef-scat_coef)/ref_scat_coef
     Cdif2 = abs(ref_abs_coef-abs_coef)
     a1 = ((Cdif1)<0.2).astype('int')
@@ -120,15 +119,15 @@ def Retr_CRI(full_wvl,
     a1[np.isinf(a1)]=0
     a2 = ((Cdif2)<pow(10,-6)).astype('int')#
     if np.sum(a1)==L2 & np.sum(a2)==L2:
-      Results["RRI_dry"] = rri
-      Results["IRI_dry"] = iri
+      Results["dry_RRI_unitless"] = rri
+      Results["dry_IRI_unitless"] = iri
       for i2 in range(L2):
-        Results[f'Cal_sca_coef_dry_{full_wvl["Sc"][i2]}_m-1'] = results[f'ssa_{full_wvl["Sc"][i2]}']*results[f'ext_coeff_{full_wvl["Sc"][i2]}_m-1']
-        Results[f'Cal_abs_coef_dry_{full_wvl["Abs"][i2]}_m-1'] = results[f'ext_coeff_{full_wvl["Abs"][i2]}_m-1']-results[f'ssa_{full_wvl["Abs"][i2]}']*results[f'ext_coeff_{full_wvl["Abs"][i2]}_m-1'] 
-        Results[f'Cal_SSA_dry_{full_wvl["Sc"][i2]}'] = results[f'ssa_{full_wvl["Sc"][i2]}']
-        Results[f'Cal_SSA_dry_{full_wvl["Abs"][i2]}'] = results[f'ssa_{full_wvl["Abs"][i2]}']
-        Results[f'Cal_ext_coef_dry_{full_wvl["Sc"][i2]}_m-1'] = results[f'ext_coeff_{full_wvl["Sc"][i2]}_m-1']
-        Results[f'Cal_ext_coef_dry_{full_wvl["Abs"][i2]}_m-1'] = results[f'ext_coeff_{full_wvl["Abs"][i2]}_m-1']
+        Results[f'dry_cal_sca_coef_{full_wvl["Sc"][i2]}_m-1'] = results[f'ssa_{full_wvl["Sc"][i2]}']*results[f'ext_coeff_{full_wvl["Sc"][i2]}_m-1']
+        Results[f'dry_cal_abs_coef_{full_wvl["Abs"][i2]}_m-1'] = results[f'ext_coeff_{full_wvl["Abs"][i2]}_m-1']-results[f'ssa_{full_wvl["Abs"][i2]}']*results[f'ext_coeff_{full_wvl["Abs"][i2]}_m-1'] 
+        Results[f'dry_cal_SSA_{full_wvl["Sc"][i2]}_unitless'] = results[f'ssa_{full_wvl["Sc"][i2]}']
+        Results[f'dry_cal_SSA_{full_wvl["Abs"][i2]}_unitless'] = results[f'ssa_{full_wvl["Abs"][i2]}']
+        Results[f'dry_cal_ext_coef_{full_wvl["Sc"][i2]}_m-1'] = results[f'ext_coeff_{full_wvl["Sc"][i2]}_m-1']
+        Results[f'dry_cal_ext_coef_{full_wvl["Abs"][i2]}_m-1'] = results[f'ext_coeff_{full_wvl["Abs"][i2]}_m-1']
       if val_wvl is not None:
         wvl2 = None
         for iwvl in range(len(val_wvl)):
@@ -138,10 +137,10 @@ def Retr_CRI(full_wvl,
             wvl2 = np.hstack((wvl2,val_wvl))
         results = MMModel(wvl2,size_equ,sd,dpg,RRI_d,IRI_d,nonabs_fraction,shape,rho,0,0,num_theta,optical_dataset,path_mopsmap_executable) 
         for iwvl in range(len(val_wvl)):
-          Results[f'Cal_sca_coef_dry_{val_wvl[iwvl]}_m-1'] = results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}_m-1']
-          Results[f'Cal_abs_coef_dry_{val_wvl[iwvl]}_m-1'] = results[f'ext_coeff_{val_wvl[iwvl]}_m-1']-results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}_m-1'] 
-          Results[f'Cal_SSA_dry_{val_wvl[iwvl]}'] = results[f'ssa_{val_wvl[iwvl]}']
-          Results[f'Cal_ext_coef_dry_{val_wvl[iwvl]}_m-1'] = results[f'ext_coeff_{val_wvl[iwvl]}_m-1']        
+          Results[f'dry_cal_sca_coef_{val_wvl[iwvl]}_m-1'] = results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}_m-1']
+          Results[f'dry_cal_abs_coef_{val_wvl[iwvl]}_m-1'] = results[f'ext_coeff_{val_wvl[iwvl]}_m-1']-results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}_m-1'] 
+          Results[f'dry_cal_SSA_{val_wvl[iwvl]}_unitless'] = results[f'ssa_{val_wvl[iwvl]}']
+          Results[f'dry_cal_ext_coef_{val_wvl[iwvl]}_m-1'] = results[f'ext_coeff_{val_wvl[iwvl]}_m-1']        
     
   return Results
 
@@ -206,11 +205,11 @@ def Retr_kappa(full_wvl,
   wvl = np.sort(wvl, axis=None)
   #print(wvl)
   Results = dict()
-  Results["Kappa"] = None
+  Results["kappa_unitless"] = None
   for i2 in range(L2):
-    Results[f'Cal_sca_coef_wet_{full_wvl["Sc"][i2]}_m-1'] = None
-    Results[f'Cal_SSA_wet_{full_wvl["Sc"][i2]}'] = None
-    Results[f'Cal_ext_coef_wet_{full_wvl["Sc"][i2]}_m-1'] = None
+    Results[f'wet_cal_sca_coef_{full_wvl["Sc"][i2]}_m-1'] = None
+    Results[f'wet_cal_SSA_{full_wvl["Sc"][i2]}_unitless'] = None
+    Results[f'wet_cal_ext_coef_{full_wvl["Sc"][i2]}_m-1'] = None
     
   stop_indx = 0
 
@@ -232,15 +231,15 @@ def Retr_kappa(full_wvl,
       ref_scat_coef = np.full((L2),np.nan)
       for i2 in range(L2):
         scat_coef[i2] = results[f'ssa_{full_wvl["Sc"][i2]}']*results[f'ext_coeff_{full_wvl["Sc"][i2]}_m-1']
-        ref_scat_coef[i2] = optical_measurements[f'Meas_sca_coef_wet_{full_wvl["Sc"][i2]}_m-1']
+        ref_scat_coef[i2] = optical_measurements[f'wet_meas_sca_coef_{full_wvl["Sc"][i2]}_m-1']
       Cdif = abs(ref_scat_coef-scat_coef)/ref_scat_coef
       #a = ((Cdif)<0.01).astype('int')
       if Cdif<0.01:
-        Results["Kappa"] = kappa_p[i1]
+        Results["kappa_unitless"] = kappa_p[i1]
         for i2 in range(L2):
-          Results[f'Cal_sca_coef_wet_{full_wvl["Sc"][i2]}_m-1'] = results[f'ssa_{full_wvl["Sc"][i2]}']*results[f'ext_coeff_{full_wvl["Sc"][i2]}_m-1']
-          Results[f'Cal_SSA_wet_{full_wvl["Sc"][i2]}'] = results[f'ssa_{full_wvl["Sc"][i2]}']
-          Results[f'Cal_ext_coef_wet_{full_wvl["Sc"][i2]}_m-1'] = results[f'ext_coeff_{full_wvl["Sc"][i2]}_m-1']
+          Results[f'wet_cal_sca_coef_{full_wvl["Sc"][i2]}_m-1'] = results[f'ssa_{full_wvl["Sc"][i2]}']*results[f'ext_coeff_{full_wvl["Sc"][i2]}_m-1']
+          Results[f'wet_cal_SSA_{full_wvl["Sc"][i2]}_unitless'] = results[f'ssa_{full_wvl["Sc"][i2]}']
+          Results[f'wet_cal_ext_coef_{full_wvl["Sc"][i2]}_m-1'] = results[f'ext_coeff_{full_wvl["Sc"][i2]}_m-1']
         if val_wvl is not None:
           wvl2 = None
           for iwvl in range(len(val_wvl)):
@@ -250,10 +249,10 @@ def Retr_kappa(full_wvl,
               wvl2 = np.hstack((wvl2,val_wvl))
           results = MMModel(wvl2,size_equ,sd,dpg_w,RRI_w,IRI_w,nonabs_fraction,shape,rho,0,0,num_theta,optical_dataset,path_mopsmap_executable) 
           for iwvl in range(len(val_wvl)):
-            Results[f'Cal_sca_coef_wet_{val_wvl[iwvl]}_m-1'] = results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}_m-1']
-            Results[f'Cal_abs_coef_wet_{val_wvl[iwvl]}_m-1'] = results[f'ext_coeff_{val_wvl[iwvl]}_m-1']-results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}_m-1'] 
-            Results[f'Cal_SSA_wet_{val_wvl[iwvl]}'] = results[f'ssa_{val_wvl[iwvl]}']
-            Results[f'Cal_ext_coef_wet_{val_wvl[iwvl]}_m-1'] = results[f'ext_coeff_{val_wvl[iwvl]}_m-1']     
+            Results[f'wet_cal_sca_coef_{val_wvl[iwvl]}_m-1'] = results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}_m-1']
+            Results[f'wet_cal_abs_coef_{val_wvl[iwvl]}_m-1'] = results[f'ext_coeff_{val_wvl[iwvl]}_m-1']-results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}_m-1'] 
+            Results[f'wet_cal_SSA_{val_wvl[iwvl]}_unitless'] = results[f'ssa_{val_wvl[iwvl]}']
+            Results[f'wet_cal_ext_coef_{val_wvl[iwvl]}_m-1'] = results[f'ext_coeff_{val_wvl[iwvl]}_m-1']     
         stop_indx = 1  
   return Results
 
