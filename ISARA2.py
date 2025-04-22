@@ -138,7 +138,7 @@ def Retr_CRI(full_wvl,
         results = MMModel(wvl2,size_equ,sd,dpg,RRI_d,IRI_d,nonabs_fraction,shape,rho,0,0,num_theta,optical_dataset,path_mopsmap_executable) 
         for iwvl in range(len(val_wvl)):
           Results[f'dry_cal_sca_coef_{val_wvl[iwvl]}_m-1'] = results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}_m-1']
-          Results[f'dry_cal_abs_coef_{val_wvl[iwvl]}_m-1'] = results[f'ext_coeff_{val_wvl[iwvl]}_m-1']-results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}_m-1'] 
+          #Results[f'dry_cal_abs_coef_{val_wvl[iwvl]}_m-1'] = results[f'ext_coeff_{val_wvl[iwvl]}_m-1']-results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}_m-1'] 
           Results[f'dry_cal_SSA_{val_wvl[iwvl]}_unitless'] = results[f'ssa_{val_wvl[iwvl]}']
           Results[f'dry_cal_ext_coef_{val_wvl[iwvl]}_m-1'] = results[f'ext_coeff_{val_wvl[iwvl]}_m-1']        
     
@@ -250,7 +250,7 @@ def Retr_kappa(full_wvl,
           results = MMModel(wvl2,size_equ,sd,dpg_w,RRI_w,IRI_w,nonabs_fraction,shape,rho,0,0,num_theta,optical_dataset,path_mopsmap_executable) 
           for iwvl in range(len(val_wvl)):
             Results[f'wet_cal_sca_coef_{val_wvl[iwvl]}_m-1'] = results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}_m-1']
-            Results[f'wet_cal_abs_coef_{val_wvl[iwvl]}_m-1'] = results[f'ext_coeff_{val_wvl[iwvl]}_m-1']-results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}_m-1'] 
+            #Results[f'wet_cal_abs_coef_{val_wvl[iwvl]}_m-1'] = results[f'ext_coeff_{val_wvl[iwvl]}_m-1']-results[f'ssa_{val_wvl[iwvl]}']*results[f'ext_coeff_{val_wvl[iwvl]}_m-1'] 
             Results[f'wet_cal_SSA_{val_wvl[iwvl]}_unitless'] = results[f'ssa_{val_wvl[iwvl]}']
             Results[f'wet_cal_ext_coef_{val_wvl[iwvl]}_m-1'] = results[f'ext_coeff_{val_wvl[iwvl]}_m-1']     
         stop_indx = 1  

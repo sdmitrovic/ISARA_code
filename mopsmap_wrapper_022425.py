@@ -130,6 +130,8 @@ def Model(wvl,size_equ,dndlogdp,dpg,RRI,IRI,nonabs_fraction,shape,density,RH,kap
   results['n'] = output_integrated['n'][0]
   results['a'] = output_integrated['a'][0]
   results['v'] = output_integrated['v'][0]
+  results['m'] = output_integrated['m'][0] 
+
   a1 = output_matrix['a1'].reshape((num_wvl,num_angles))
   a2 = output_matrix['a2'].reshape((num_wvl,num_angles))
   a3 = output_matrix['a3'].reshape((num_wvl,num_angles))
@@ -141,7 +143,6 @@ def Model(wvl,size_equ,dndlogdp,dpg,RRI,IRI,nonabs_fraction,shape,density,RH,kap
   if num_wvl > 0:
     for i1 in range(num_wvl): 
       results[f'ext_coeff_{wvl[i1]}_m-1'] = output_integrated['ext_coeff'][i1]
-      results[f'm_{wvl[i1]}'] = output_integrated['m'][i1]  
       results[f'ssa_{wvl[i1]}'] = output_integrated['ssa'][i1]
       results[f'g_{wvl[i1]}'] = output_integrated['g'][i1]
       results[f'ext_angstrom_{wvl[i1]}'] = output_integrated['ext_angstrom'][i1]
@@ -163,7 +164,6 @@ def Model(wvl,size_equ,dndlogdp,dpg,RRI,IRI,nonabs_fraction,shape,density,RH,kap
  
   else:
     results[f'ext_coeff_{wvl[0]}_m-1'] = output_integrated['ext_coeff'][0]
-    results[f'm_{wvl[0]}'] = output_integrated['m'][0]  
     results[f'ssa_{wvl[0]}'] = output_integrated['ssa'][0]
     results[f'g_{wvl[0]}'] = output_integrated['g'][0]
     results[f'ext_angstrom_{wvl[0]}'] = output_integrated['ext_angstrom'][0]
