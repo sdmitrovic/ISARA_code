@@ -1,23 +1,3 @@
-#########################################################################################################################
-# mopsmap_UI.py                                       by:  Joseph Schlosser
-#                                                revised:  19 Feb 2022 
-#                                    language (revision):  python3 (3.8.2-0ubuntu2)
-#
-# Description: user interface used to select LAS size distribution (SD) data from a ICT file and format the data into a
-# python3 dictionary
-#
-# Implementation: this interface can be run from using the following ubuntu syntax: user:$ python3 mopsmap_UI.py
-#
-# the output of this code is output_dictionary, which is a python3 dictionary containing column-arrays for each of the 
-# parameters in the .ict file and row-column matricies for each of the MOPSMAP ouputs
-# -> each column corresponds to a line in the provided .ict file
-# -> each row of the MOPSMAP ouputs corresponds to each of the desired output wavelengths
-#
-# WARNINGS:
-# 1) numpy, csv, and tqdm must be installed to the python environment
-# 2) importICT.py, mopsmap_SD_run.py, LAS_bin_sizes.csv, and and file with the corresponding filename must be present in 
-#    a directory that is in your PATH
-#########################################################################################################################
 import numpy as np
 import pandas as pd
 import powerfunction as pwrfn
@@ -25,6 +5,20 @@ from scipy.optimize import curve_fit
 f_model = pwrfn.f_model
 
 def Align(D_optic,N_optic,D_aero,N_aero):
+    """
+    function y = a*x^c 
+    
+    :param D_optic: optical size distribution geometric mean diameters of each bin
+    :type D_optic: numpy array
+    :param N_optic: optical size distribution number concentration of each bin in m-3
+    :type N_optic: numpy array
+    :param D_aero: aerodynamic size distribution geometric mean diameters of each bin
+    :type D_aero: numpy array
+    :param N_aero: aerodynamic size distribution number concentration of each bin in m-3
+    :type D_aero: numpy array    
+    :return y: 
+    :rtype: double, float, int
+    """   
     rho = None
     peak = None
     ro =  np.arange(1.3, 3.0, 0.1, dtype=float)
@@ -92,14 +86,12 @@ def Align(D_optic,N_optic,D_aero,N_aero):
                         rho = r0[jj2]
                         peak = np.divide(Daero[jj[0]],np.sqrt(rho))
 
-    #avg =[np.mean(rho[np.logical_not(np.isnan(n_optic))]),np.std(rho[rho>0])]
-    #rho[rho==0] = avg[0]
     output = dict();
     if rho is not None:
         output['rho'] = rho
         output['peak'] = peak
     else:
-        output['rho'] = 1.63
+        output['rho'] = 1.00
         output['peak'] = np.nan        
     return output 
     ##
