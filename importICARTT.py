@@ -145,7 +145,6 @@ def imp(filename, num_time_columns):
                 frmttimedata[i1,i2] = dte
 
     # Add frmttimedata and mattimedata to dictionary   
-
     if num_time_columns == 1:
         output_dictionary['Time_Start_Seconds'] = SAMtime        
         output_dictionary['VariableAttributes']['Time_Start_Seconds'] = {}

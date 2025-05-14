@@ -24,12 +24,6 @@
 
    
    
-   .. rubric:: Exceptions
-
-   .. autosummary::
-   
-      InvalidNumberOfWavelengths
-   
    
 
 

@@ -8,4 +8,4 @@ API
    mopsmap_wrapper
    importICARTT
    load_sizebins
-   ISARA_ACTIVATE_Data_Retrieval
+   ISARA_Data_Retrieval

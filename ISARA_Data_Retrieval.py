@@ -1,4 +1,4 @@
-import ISARA2
+import ISARA
 import APS_rho
 import importICARTT
 import load_sizebins
@@ -9,11 +9,7 @@ from pathos.multiprocessing import ProcessPool
 def RunISARA():
 
     """
-    Returns a dictionary of each of the ACTIVATE merged Falcon data files in directory as well as the retrieved particle complex refractive index and hygroscopicity
-
-
-    :return: dictionary of all merged data and the retrieved parameters.
-    :rtype: numpy dictionary
+    Saves a dictionary file of each of the merged data files in source directory that includes ISARA retrievals of CRI and kappa. Dictionary includes metadata for netCDF compliancy.
 
     >>> import ISARA_Data_Retrieval
     >>> ISARA_Data_Retrieval.RunISARA()
@@ -35,47 +31,263 @@ def RunISARA():
 
     def pause():
         programPause = input("Press the <ENTER> key to continue...")    
-
+    def grab_data(data,key_name):
+        for key in data.keys():
+            if key.__contains__(key_name):
+                return data[key]    
     def grab_ICT_Data(filename,modelist,full_wvl):
         data = importICARTT.imp(filename,2) 
-        def grab_keydata(key_starts_with):
+        def grab_keydata(key_starts_with,does_not_contain=None):
             for key in data.keys():
+                if does_not_contain is None:
+                    if key.startswith(key_starts_with):
+                        return data[key], key    
+                else:
+                    if key.startswith(key_starts_with)&np.logical_not(key.__contains__(does_not_contain)):
+                        return data[key], key                             
+        Sc = dict()
+        Abs = dict()
+        #SSA = {}
+        Lwvl = len(full_wvl["Sc"])
+        for iwvl in range(Lwvl):
+            #print(iwvl)
+            Scat, ScatKey = grab_keydata(f'Sc{full_wvl["Sc"][iwvl]}','amb')
+            Sc[ScatKey]=Scat
+            Absor, AbsorKey = grab_keydata(f'Abs{full_wvl["Abs"][iwvl]}','amb')
+            Abs[AbsorKey]=Absor
+        RHsc,kynmRH = grab_keydata('RH_Sc')
+        RHsc= np.array(RHsc)
+        gamma,kynmgamma = grab_keydata('gamma550')
+        gamma= np.array(gamma)
+        print(RHsc.size,gamma.size)
 
-                if key.startswith(key_starts_with):
-                    return data[key]    
-
-        time = np.array(grab_keydata('Time_Start'))
-        frmttime = np.array(grab_keydata('fmtdatetime_Start'))
+        time,keynmtime = grab_keydata('Time_Start')
+        time= np.array(time)        
+        frmttime,kynm = grab_keydata('datetime_Start')
+        frmttime= np.array(frmttime) 
         print(len(frmttime))
-        date = grab_keydata('date')
-        alt = np.array(grab_keydata('GPS_Altitude_BUCHOLTZ'))#alt = np.array(grab_keydata('gpsALT'))#alt = np.array(grab_keydata('GPS_alt'))
-        lat = np.array(grab_keydata('Latitude'))
-        print(len(lat))
-        lon = np.array(grab_keydata('Longitude'))
+        date,knmdate = grab_keydata('date')
         sd = {}
         for imode in modelist:
             if imode == "FIMS":
                 sd[imode] = np.array([v for k, v in data.items() if k.startswith(f'n_Dp_')])
             else:
                 sd[imode] = np.array([v for k, v in data.items() if k.startswith(f'{imode}_')])
-            #print(sd[imode].size(1,2))
-        RH_amb = np.array(grab_keydata('Relative_Humidity_Ambient_BUCHOLTZ'))
-        #RH_amb = np.array(grab_keydata('RHw_DLH_DISKIN_ '))
-        print(RH_amb.size)
-        RH_sp = np.array(grab_keydata('RH_Sc'))
-        Sc = {}
-        Abs = {}
-        SSA = {}
-        for i1 in full_wvl["Sc"]:
-            Sc[f'Sc{full_wvl['Sc'][i1]}'] = np.array([v for k, v in data.items() if (k.startswith(f'Sc{full_wvl['Sc'][i1]}')&k.__contains__('total'))])
-            Abs[f'Abs{full_wvl['Abs'][i1]}'] = np.array([v for k, v in data.items() if k.startswith(f'Abs{full_wvl['Abs'][i1]}')])
-            SSA[f'{full_wvl['Sc'][i1]}'] = np.array([v for k, v in data.items() if (k.startswith('SSA')&k.__contains__('dry')&k.__contains__(f'{full_wvl['Sc'][i1]}'))])
-        Ext = np.array([v for k, v in data.items() if k.startswith('Ext532_total_dry')])
-        SSAa =np.array(grab_keydata('SSA_amb_550nm_ZIEMBA'))
-        print(SSAa.size)
-        fRH = np.array(grab_keydata('fRH'))
-        return (data, time, date, alt, lat, lon, sd, RH_amb, RH_sp, Sc, Abs, Ext, SSA, SSAa, fRH)   
+
+
+        #pause()
+        return (data, time, date, sd, Sc, Abs, RHsc, gamma)   
     
+
+    def handle_line(modelist, sd, dpg, dpu, dpl, UBcutoff, LBcutoff, measured_Sc_dry, measured_Abs_dry, RHsc, gamma,
+                        full_wvl, full_wvl2, val_wvl, size_equ, CRI_p, nonabs_fraction, shape,
+                        kappa_p, num_theta, rho_wet, path_optical_dataset, path_mopsmap_executable, full_dp):
+                    
+        # So this code may look a bit funky, but we are doing what is called currying. This is simply the idea of returning a function inside of a function. 
+        # It may look weird doing this, but this is actually required so that each worker has the necessary data. What ends up happening is each worker is 
+        # passed a full copy of all the data contained within this function, so it has to know what data needs to be copied. Anyhow, the inner `curry` 
+        # function is what is actually being called for each iteration of the for loop.
+        # You will notice that in the code we are assining the value for this row and they will be merged later
+        def curry(i1):  
+            finalout = {}
+            #finalout['full_wvl'] = full_wvl
+            measflg = 0 
+            Lwvl = len(full_wvl["Sc"])
+
+            iwvl = 0        
+            for kwvl in measured_Abs_dry: 
+                finalout[f'dry_meas_abs_coef_{full_wvl["Abs"][iwvl]}_m-1'] = np.multiply(measured_Abs_dry[kwvl][i1], pow(10, -6))
+                if finalout[f'dry_meas_abs_coef_{full_wvl["Abs"][iwvl]}_m-1']>=0:
+                    measflg += 1
+                iwvl += 1    
+
+            iwvl = 0
+            keycheck = None                          
+            for kwvl in measured_Sc_dry: 
+                if RHsc[i1]>40:
+                    finalout[f'dry_meas_sca_coef_{full_wvl["Sc"][iwvl]}_m-1'] = np.multiply(measured_Sc_dry[kwvl][i1], pow(10, -6))/(np.exp(gamma[i1]*np.log((100-40)/(100-RHsc[i1]))))#scat_calc=scat_rh=measured(e^(GAMMA*ln((100-calcRH)/(100-measRH))))
+                else:
+                    finalout[f'dry_meas_sca_coef_{full_wvl["Sc"][iwvl]}_m-1'] = np.multiply(measured_Sc_dry[kwvl][i1], pow(10, -6))
+                keycheck = kwvl     
+                if finalout[f'dry_meas_sca_coef_{full_wvl["Sc"][iwvl]}_m-1']>=10**(-6):#
+                    measflg += 1
+                if kwvl.__contains__(str(full_wvl["Sc"][1])):
+                    finalout[f'wet_meas_sca_coef_{full_wvl["Sc"][1]}_m-1'] = np.multiply(measured_Sc_dry[kwvl][i1], pow(10, -6))/(np.exp(gamma[i1]*np.log((100-80)/(100-RHsc[i1]))))
+                    finalout[f'wet_meas_ext_coef_{full_wvl["Sc"][1]}_m-1'] = finalout[f'wet_meas_sca_coef_{full_wvl["Sc"][1]}_m-1']+finalout[f'dry_meas_abs_coef_{full_wvl["Abs"][1]}_m-1']
+                    finalout[f'meas_fRH_{full_wvl["Sc"][1]}_unitless'] = finalout[f'wet_meas_sca_coef_{full_wvl["Sc"][1]}_m-1']/finalout[f'dry_meas_sca_coef_{full_wvl["Sc"][1]}_m-1']
+                iwvl += 1     
+    
+
+
+            dndlogdp = {}
+            for imode in sd:
+                dndlogdp[imode] = np.multiply(sd[imode][:, i1], pow(10, 6))
+            if "APS" in modelist[:]:
+                output_dictionary_1 = APS_rho.Align(dpg["UHSAS"],dndlogdp["UHSAS"],dpg["APS"],dndlogdp["APS"])
+                rho_dry = output_dictionary_1["rho"]
+                peak = output_dictionary_1["peak"]
+            else:
+                rho_dry = 1
+                peak = np.nan
+            finalout['dry_rho_g.cm-3'] = rho_dry
+            finalout['peak_diameter_um'] = peak
+            finalout['attempt_flag_CRI_unitless'] = 0
+            finalout['attempt_flag_kappa_unitless'] = 0
+            dpflg = 0
+            icount = 0
+            Dpg = {}
+            Dpu = {}
+            Dpl = {}  
+            Dndlogdp = {}
+            Size_equ = {}
+            Nonabs_fraction = {}
+            Shape = {}
+            Rho_dry = {}
+            Rho_wet = {}  
+            fullsd = None
+            fulldpg = None
+            fulldpu = None
+            fulldpl = None
+            for imode in sd:
+                icount += 1
+                if len(dpg[imode]) > 3:
+                    if imode == "APS":
+                        a = np.divide(dpl[imode],np.sqrt(rho_dry))
+                        b = np.divide(dpu[imode],np.sqrt(rho_dry))
+                        modeflg = np.where(np.logical_not(np.isnan(dndlogdp[imode]))&(a>=LBcutoff[imode])&(b<=UBcutoff[imode]))[0]
+                    else:
+                        modeflg = np.where(np.logical_not(np.isnan(dndlogdp[imode]))&(dpl[imode]>=LBcutoff[imode])&(dpu[imode]<=UBcutoff[imode]))[0]
+                    
+                    Dndlogdp[imode] = dndlogdp[imode][modeflg] 
+                    if len(Dndlogdp[imode]) > 3:
+                        dpflg += 1
+                        Size_equ[imode] = size_equ
+                        Nonabs_fraction[imode] = nonabs_fraction
+                        Shape[imode] = shape
+                        Rho_dry[imode] = rho_dry
+                        Rho_wet[imode] = rho_wet
+                        if imode == "APS":
+                            Dpg[imode] = np.divide(dpg[imode],np.sqrt(Rho_dry[imode]))[modeflg]
+                            Dpu[imode] = np.divide(dpu[imode],np.sqrt(Rho_dry[imode]))[modeflg]
+                            Dpl[imode] = np.divide(dpl[imode],np.sqrt(Rho_dry[imode]))[modeflg]
+                        else:
+                            Dpg[imode] = dpg[imode][modeflg]
+                            Dpu[imode] = dpu[imode][modeflg]
+                            Dpl[imode] = dpl[imode][modeflg]
+                        if dpflg == 1:
+                            fullsd = Dndlogdp[imode]
+                            fulldpg = Dpg[imode]
+                            fulldpu = Dpu[imode]
+                            fulldpl = Dpl[imode]
+                        else:
+                            fullsd = np.hstack((fullsd,Dndlogdp[imode]))
+                            fulldpg = np.hstack((fulldpg,Dpg[imode]))
+                            fulldpu = np.hstack((fulldpu,Dpu[imode]))
+                            fulldpl = np.hstack((fulldpl,Dpl[imode]))
+            if (dpflg==icount) & (measflg == 6):        
+                full_sd = np.full(len(full_dp["dpg"]),np.nan)
+                full_dpl= np.full(len(full_dp["dpg"]),np.nan)
+                full_dpg = np.full(len(full_dp["dpg"]),np.nan)
+                full_dpu = np.full(len(full_dp["dpg"]),np.nan)          
+                for idpg in range(len(full_dp["dpg"])):
+                    fulldpflg = np.where((fulldpg>=full_dp["dpl"][idpg])&(fulldpg<=full_dp["dpu"][idpg]))[0]
+                    if len(fulldpflg)>0:
+                        full_sd[idpg] = fullsd[fulldpflg]
+                        full_dpl[idpg] = fulldpl[fulldpflg]
+                        full_dpg[idpg] = fulldpg[fulldpflg]
+                        full_dpu[idpg] = fulldpu[fulldpflg]
+                for idpg in range(len(full_dp["dpg"])):
+                    finalout[f'dndlogdp_bin{idpg}_cm-3'] = full_sd[idpg]       
+                    finalout[f'dpl_bin{idpg}_um'] = full_dpl[idpg]
+                    finalout[f'dpg_bin{idpg}_um'] = full_dpg[idpg]
+                    finalout[f'dpu_bin{idpg}_um'] = full_dpu[idpg]          
+            
+                finalout['attempt_flag_CRI_unitless'] = 1
+                if (keycheck.__contains__('submicron')&(UBcutoff[imode]>1)):
+                    for imode in Dpg:
+                        submicronfilter = np.where(Dpu[imode]<=1)[0]
+                        Dndlogdp[imode]= Dndlogdp[imode][submicronfilter]
+                        Dpg[imode] = Dpg[imode][submicronfilter]
+                        Dpl[imode] = Dpl[imode][submicronfilter]
+                        Dpu[imode] = Dpu[imode][submicronfilter]
+
+
+                Results = ISARA.Retr_CRI(full_wvl, val_wvl, finalout, Dndlogdp, Dpg, CRI_p, Size_equ, 
+                    Nonabs_fraction, Shape, Rho_dry, num_theta, path_optical_dataset, path_mopsmap_executable)    
+                if Results["dry_RRI_unitless"] is not None:
+                    finalout['attempt_flag_CRI_unitless'] = 2
+                    #print(Results["RRIdry"])
+                    CRI_dry = np.array([Results["dry_RRI_unitless"],Results["dry_IRI_unitless"]])
+                    for key in Results:
+                        finalout[key] = Results[key]
+                    #if (RH_amb[i1].astype(str) != 'nan') and (measured_coef_wet[i1].astype(str) != 'nan'):
+                    if np.logical_not(np.isnan(finalout[f'wet_meas_sca_coef_550_m-1'])):
+                        finalout['attempt_flag_kappa_unitless'] = 1
+                        Results = ISARA.Retr_kappa(full_wvl2, val_wvl, finalout, Dndlogdp, Dpg, 80, kappa_p, CRI_dry,
+                            Size_equ, Nonabs_fraction, Shape, Rho_wet, num_theta,
+                            path_optical_dataset, path_mopsmap_executable)
+                        
+                        if Results["kappa_unitless"] is not None:
+                            finalout['attempt_flag_kappa_unitless'] = 2
+                            for key in Results:
+                                finalout[key] = Results[key]
+                            #print(finalout["kappa"])    
+                            finalout[f'cal_fRH_550_unitless'] = finalout[f'wet_cal_sca_coef_550_m-1']/finalout[f'dry_meas_sca_coef_550_m-1']
+                        else:
+                            finalout[f'cal_fRH_550_unitless'] = np.nan
+                            finalout[f'kappa_unitless'] = np.nan
+                            for i2 in range(len(full_wvl2["Sc"])):
+                                finalout[f'wet_cal_sca_coef_{full_wvl2["Sc"][i2]}_m-1'] = np.nan
+                                finalout[f'wet_cal_SSA_{full_wvl2["Sc"][i2]}_unitless'] = np.nan
+                                finalout[f'wet_cal_ext_coef_{full_wvl2["Sc"][i2]}_m-1'] = np.nan
+                            if val_wvl is not None:
+                                for i2 in range(len(val_wvl)):
+                                    finalout[f'wet_cal_sca_coef_{val_wvl[i2]}_m-1'] = np.nan
+                                    finalout[f'wet_cal_SSA_{val_wvl[i2]}_unitless'] = np.nan
+                                    finalout[f'wet_cal_ext_coef_{val_wvl[i2]}_m-1'] = np.nan                                     
+                    else:
+                        finalout["dry_RRI_unitless"] = np.nan
+                        finalout["dry_IRI_unitless"] = np.nan
+                        for i2 in range(Lwvl):
+                            finalout[f'dry_cal_sca_coef_{full_wvl["Sc"][i2]}_m-1'] = np.nan
+                            finalout[f'dry_cal_abs_coef_{full_wvl["Abs"][i2]}_m-1'] = np.nan
+                            finalout[f'dry_cal_SSA_{full_wvl["Sc"][i2]}_unitless'] = np.nan
+                            finalout[f'dry_cal_SSA_{full_wvl["Abs"][i2]}_unitless'] = np.nan
+                            finalout[f'dry_cal_ext_coef_{full_wvl["Sc"][i2]}_m-1'] = np.nan
+                            finalout[f'dry_cal_ext_coef_{full_wvl["Abs"][i2]}_m-1'] = np.nan
+                        if val_wvl is not None:
+                            for i2 in range(len(val_wvl)):
+                                finalout[f'dry_cal_sca_coef_{val_wvl[i2]}_m-1'] = np.nan
+                                finalout[f'dry_cal_SSA_{val_wvl[i2]}_unitless'] = np.nan
+                                finalout[f'dry_cal_ext_coef_{val_wvl[i2]}_m-1'] = np.nan                       
+            else:
+                finalout["dry_RRI_unitless"] = np.nan
+                finalout["dry_IRI_unitless"] = np.nan
+                for i2 in range(Lwvl):
+                    finalout[f'dry_cal_sca_coef_{full_wvl["Sc"][i2]}_m-1'] = np.nan
+                    finalout[f'dry_cal_abs_coef_{full_wvl["Abs"][i2]}_m-1'] = np.nan
+                    finalout[f'dry_cal_SSA_{full_wvl["Sc"][i2]}_unitless'] = np.nan
+                    finalout[f'dry_cal_SSA_{full_wvl["Abs"][i2]}_unitless'] = np.nan
+                    finalout[f'dry_cal_ext_coef_{full_wvl["Sc"][i2]}_m-1'] = np.nan
+                    finalout[f'dry_cal_ext_coef_{full_wvl["Abs"][i2]}_m-1'] = np.nan
+
+                finalout[f'cal_fRH_550_unitless'] = np.nan
+                finalout[f'kappa_unitless'] = np.nan
+                for i2 in range(len(full_wvl2["Sc"])):
+                    finalout[f'wet_cal_sca_coef_{full_wvl2["Sc"][i2]}_m-1'] = np.nan
+                    finalout[f'wet_cal_SSA_{full_wvl2["Sc"][i2]}_unitless'] = np.nan
+                    finalout[f'wet_cal_ext_coef_{full_wvl2["Sc"][i2]}_m-1'] = np.nan   
+                if val_wvl is not None:
+                    for i2 in range(len(val_wvl)):
+                        finalout[f'dry_cal_sca_coef_{val_wvl[i2]}_m-1'] = np.nan
+                        finalout[f'dry_cal_SSA_{val_wvl[i2]}_unitless'] = np.nan
+                        finalout[f'dry_cal_ext_coef_{val_wvl[i2]}_m-1'] = np.nan    
+                        finalout[f'wet_cal_sca_coef_{val_wvl[i2]}_m-1'] = np.nan
+                        finalout[f'wet_cal_SSA_{val_wvl[i2]}_unitless'] = np.nan
+                        finalout[f'wet_cal_ext_coef_{val_wvl[i2]}_m-1'] = np.nan                                                           
+            return (finalout)   
+
+        return curry    
 
     OP_Dictionary = {}  
 
@@ -108,158 +320,10 @@ def RunISARA():
     num_theta = 2   
 
     #rho_dry = 2.63
-    rho_wet = 1.63  
+    rho_wet = 1.00  
 
-    def handle_line(modelist, sd, dpg, dpu, dpl, UBcutoff, LBcutoff, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
-                        measured_coef_wet, measured_ext_coef_wet, measured_ssa_wet, measured_fRH,
-                        full_wvl, size_equ, CRI_p, nonabs_fraction, shape,
-                        RH_sp, kappa_p, num_theta, RH_amb, rho_wet, path_optical_dataset, path_mopsmap_executable, full_dp):
-                    
-        # So this code may look a bit funky, but we are doing what is called currying. This is simply the idea of returning a function inside of a function. It may look weird doing this, but this is actually required so that each worker has the necessary data. What ends up happening is each worker is passed a full copy of all the data contained within this function, so it has to know what data needs to be copied. Anyhow, the inner `curry` function is what is actually being called for each iteration of the for loop.
-        def curry(i1):  
-
-            meas_coef = np.multiply(measured_coef_dry[:, i1], pow(10, -6))
-            dndlogdp = {}
-            for imode in sd:
-                dndlogdp[imode] = np.multiply(sd[imode][:, i1], pow(10, 6))
-                dndlogdp[imode][np.where(dndlogdp[imode] == 0)[0]] = np.nan
-            if "APS" in modelist[:]:
-                output_dictionary_1 = APS_rho.Align(dpg["UHSAS"],dndlogdp["UHSAS"],dpg["APS"],dndlogdp["APS"])
-                rho_dry = output_dictionary_1["rho"]
-                peak = output_dictionary_1["peak"]
-            else:
-                rho_dry = np.full((1, L1), 1.63)
-                peak = np.full((1, L1), np.nan)
-
-            # This is where things become a pain :( Since we are spreading the work across multiple cores, there is a copy of the data in each core. Therefore, we are not able to easily make updates to the numpy arrays, so instead we will obtain the results for each line then join them together after the multiprocessing occurs.
-            IRI_dry = None
-            RRI_dry = None
-            CalScatCoef_dry = None
-            CalAbsCoef_dry = None
-            CalExtCoef_dry = None
-            CalSSA_dry = None
-            meas_coef_dry = None
-            meas_ext_coef_dry = None
-            meas_ssa_dry = None
-            Kappa = None
-            CalCoef_wet = None
-            CalExtCoef_wet = None
-            CalSSA_wet = None
-            CalfRH = None
-            meas_coef_wet = None
-            meas_ext_coef_wet = None
-            meas_ssa_amb = None
-            meas_fRH = None
-            attempt_count = np.zeros(2)
-            # You will notice that in the code, instead of doing things like CRI_dry[:, i1] = ..., we are instead just assining the value for this row instead and then they will be merged later
-            dpflg = 0
-            icount = 0
-            Dpg = {}
-            Dpu = {}
-            Dpl = {}  
-            Dndlogdp = {}
-            Size_equ = {}
-            Nonabs_fraction = {}
-            Shape = {}
-            Rho_dry = {}
-            Rho_wet = {}  
-            fullsd = None
-            fulldpg = None
-            fulldpu = None
-            fulldpl = None
-            for imode in sd:
-                icount += 1
-                if len(dpg[imode]) > 3:
-                    if imode == "APS":
-                        a = np.divide(dpl[imode],np.sqrt(rho_dry))
-                        b = np.divide(dpu[imode],np.sqrt(rho_dry))
-                        modeflg = np.where(np.logical_not(np.isnan(dndlogdp[imode]))&(a>=LBcutoff[imode])&(b<=UBcutoff[imode]))[0]
-                    else:
-                        modeflg = np.where(np.logical_not(np.isnan(dndlogdp[imode]))&(dpl[imode]>=LBcutoff[imode])&(dpu[imode]<=UBcutoff[imode]))[0]
-                
-                    dpflg += 1
-                    Dndlogdp[imode] = dndlogdp[imode][modeflg] 
-                    Size_equ[imode] = size_equ
-                    Nonabs_fraction[imode] = nonabs_fraction
-                    Shape[imode] = shape
-                    Rho_dry[imode] = rho_dry
-                    Rho_wet[imode] = rho_wet
-                    if imode == "APS":
-                        Dpg[imode] = np.divide(dpg[imode],np.sqrt(Rho_dry[imode]))[modeflg]
-                        Dpu[imode] = np.divide(dpu[imode],np.sqrt(Rho_dry[imode]))[modeflg]
-                        Dpl[imode] = np.divide(dpl[imode],np.sqrt(Rho_dry[imode]))[modeflg]
-                    else:
-                        Dpg[imode] = dpg[imode][modeflg]
-                        Dpu[imode] = dpu[imode][modeflg]
-                        Dpl[imode] = dpl[imode][modeflg]
-                    if dpflg == 1:
-                        fullsd = Dndlogdp[imode]
-                        fulldpg = Dpg[imode]
-                        fulldpu = Dpu[imode]
-                        fulldpl = Dpl[imode]
-                    else:
-                        fullsd = np.hstack((fullsd,Dndlogdp[imode]))
-                        fulldpg = np.hstack((fulldpg,Dpg[imode]))
-                        fulldpu = np.hstack((fulldpu,Dpu[imode]))
-                        fulldpl = np.hstack((fulldpl,Dpl[imode]))
-            full_sd = np.full(len(full_dp["dpg"]),np.nan)
-            for idpg in range(len(full_dp["dpg"])):
-                fulldpflg = np.where((fulldpg>=full_dp["dpl"][idpg])&(fulldpg<=full_dp["dpu"][idpg]))[0]
-                if len(fulldpflg)>0:
-                    full_sd[idpg] = fullsd[fulldpflg]
-
-            measflg = np.where((np.logical_not(np.isnan(meas_coef))&(meas_coef>10**(-6))))[0]
-            #print(len(meas_coef))
-            if (dpflg==icount) & (len(meas_coef[measflg]) == 6):
-                attempt_count[0] = 1
-                #print(attempt_count[0])
-                Results = ISARA2.Retr_CRI(wvl, meas_coef[0:3], meas_coef[3:], Dndlogdp, Dpg, CRI_p, Size_equ, 
-                    Nonabs_fraction, Shape, Rho_dry, num_theta, path_optical_dataset, path_mopsmap_executable)    
-
-                if Results["RRIdry"] is not None:
-                    #print(Results["RRIdry"])
-                    RRI_dry = Results["RRIdry"]
-                    IRI_dry = Results["IRIdry"]
-                    CRI_dry = np.array([RRI_dry,IRI_dry])
-                    CalScatCoef_dry = Results["scat_coef"]
-                    CalAbsCoef_dry = Results["abs_coef"]
-                    CalExtCoef_dry = Results["ext_coef"]
-                    CalSSA_dry = Results["SSA"]
-                    meas_coef_dry = measured_coef_dry[:, i1]
-                    meas_ext_coef_dry = measured_ext_coef_dry[i1]
-                    meas_ssa_dry = measured_ssa_dry[:, i1]  
-
-                    #if (RH_amb[i1].astype(str) != 'nan') and (measured_coef_wet[i1].astype(str) != 'nan'):
-                    if np.logical_not(np.isnan(measured_coef_wet[i1])):
-                        attempt_count[1] = 1
-                        meas_coef = np.multiply(measured_coef_wet[i1], pow(10, -6))
-                        Results = ISARA2.Retr_kappa(wvl, meas_coef, Dndlogdp, Dpg, 80, kappa_p, CRI_dry,
-                            Size_equ, Nonabs_fraction, Shape, Rho_wet, num_theta,
-                            path_optical_dataset, path_mopsmap_executable)
-                        
-                        if Results["Kappa"] is not None:
-                            Kappa = Results["Kappa"]
-                            CalCoef_wet = Results["Cal_coef"]
-                            CalExtCoef_wet = Results["Cal_ext_coef"]
-                            CalSSA_wet = Results["Cal_SSA"]
-                            meas_coef_wet = measured_coef_wet[i1]
-                            meas_ext_coef_wet = measured_ext_coef_wet[i1]
-                            meas_ssa_wet = measured_ssa_wet[i1]
-                            meas_fRH = measured_fRH[i1]
-                            CalfRH = np.empty(len(CalCoef_wet))
-                            CalfRH[:] = np.nan
-                            for i3 in range(len(CalCoef_wet)):
-                                if CalExtCoef_dry is not None:
-                                    CalfRH[i3] = CalCoef_wet[i3]/(CalExtCoef_dry[i3]*CalSSA_dry[i3])
-
-
-            return (RRI_dry, IRI_dry, CalScatCoef_dry, CalAbsCoef_dry, CalExtCoef_dry, CalSSA_dry, meas_coef_dry, 
-                    meas_ext_coef_dry, meas_ssa_dry, Kappa, CalCoef_wet, CalExtCoef_wet, CalSSA_wet, CalfRH,
-                    meas_coef_wet, meas_ext_coef_wet, meas_ssa_wet, meas_fRH, attempt_count, full_sd)#, results)    
-
-        return curry    
-    
     DN = input("Enter the campaign name (e.g., ACTIVATE): ")   
+    #dryorSP = input("Is the dry RH specified? Enter yes or no: ")
     nummodes = int(input("Enter number of size distributions measured: "))
     modelist = np.empty(nummodes).astype(str)  
     UBcutoff = {}    
@@ -277,9 +341,10 @@ def RunISARA():
         modelist[i1] = keyname
         ifn = [f for f in os.listdir(f'./misc/{DN}/SDBinInfo/') if f.__contains__(keyname)]
         dpData = load_sizebins.Load(f'./misc/{DN}/SDBinInfo/{ifn[0]}')
-        dpg[keyname] = dpData["Mid Points"]*pow(10,-3) 
-        dpu[keyname] = dpData["Upper Bounds"]*pow(10,-3) 
-        dpl[keyname] = dpData["Lower Bounds"]*pow(10,-3) 
+        #print(dpData)
+        dpg[keyname] = grab_data(dpData,"Mid Points")*pow(10,-3) 
+        dpu[keyname] = grab_data(dpData,"Upper Bounds")*pow(10,-3) 
+        dpl[keyname] = grab_data(dpData,"Lower Bounds")*pow(10,-3) 
         UBcutoff[keyname] = float(input(f"Enter the upper bound of particle sizes\nfor {keyname} data in nm (e.g., 125): "))*pow(10,-3)
         LBcutoff[keyname] = float(input(f"Enter the lower bound of particle sizes\nfor {keyname} data in nm (e.g., 10): "))*pow(10,-3)
         dpcutoffflg = np.where((dpl[keyname]>=LBcutoff[keyname])&(dpu[keyname]<=UBcutoff[keyname]))[0]
@@ -292,142 +357,242 @@ def RunISARA():
             full_dp["dpg"] = np.hstack((full_dp["dpg"],dpg[keyname][dpcutoffflg]))
             full_dp["dpu"] = np.hstack((full_dp["dpu"],dpu[keyname][dpcutoffflg]))
             full_dp["dpl"] = np.hstack((full_dp["dpl"],dpl[keyname][dpcutoffflg]))
-    numwvl = int(input("Enter number of spectral channels measured: "))
+    numwvl = int(input("Enter number of dry spectral channels measured (e.g., 3): "))
     full_wvl = {}
-    full_wvl["Sc"] = np.full((numwvl),np.nan)
-    full_wvl["Abs"] = np.full((numwvl),np.nan)
-    for i1 in range(numwvl):
-        full_wvl["Sc"][i1]  = input(f"Enter scattering wavelength associated with channel {i1+1} in nm (e.g., 450): ")
-        full_wvl["Abs"][i1] = input(f"Enter absorption wavelength associated with channel {i1+1} in nm (e.g., 465): ")
-    IFN = [f for f in os.listdir(f'./misc/{DN}/InsituData/') if f.endswith('.ict')]
-    for input_filename in IFN:#[156:]:
+    full_wvl["Sc"] = np.full(numwvl,np.nan).astype(int)
+    full_wvl["Abs"] = np.full(numwvl,np.nan).astype(int)
+    dry_channel_color = np.full(numwvl,np.nan).astype(str) 
+    for iwvl in range(numwvl):
+        full_wvl["Sc"][iwvl] = input(f"Enter scattering wavelength associated with channel {iwvl+1} in nm (e.g., 450): ")
+        full_wvl["Abs"][iwvl] = input(f"Enter absorption wavelength associated with channel {iwvl+1} in nm (e.g., 465): ")
+        dry_channel_color[iwvl] = input(f"Enter the wavelength color to represent channel {iwvl+1} (e.g., Blue, Green, or Red): ")
+
+    numwvl = int(input("Enter number of humidified spectral channels measured (e.g., 1): "))
+    full_wvl2 = {}
+    full_wvl2["Sc"] = np.full(numwvl,np.nan).astype(int)
+    wet_channel_color = np.full(numwvl,np.nan).astype(str) 
+    for iwvl in range(numwvl):
+        full_wvl2["Sc"][iwvl]  = input(f"Enter scattering wavelength associated with channel {iwvl+1} in nm (e.g., 450): ")
+        wet_channel_color[iwvl] = input(f"Enter the wavelength color to represent channel {iwvl+1} (e.g., Blue, Green, or Red): ")
+
+    addwvl = input(f"Are there any additional wavelengths needed? (yes or no): ")
+    if addwvl == "yes":
+        valwvl = input(f"Enter the additional wavelength channels speparated\nby a comma and a space (e.g., 370, 530, 1060): ")
+        val_wvl =  np.array(valwvl.split(", ")).astype(int)
+        valcolor = input(f"Enter the additional wavelength channels colors speparated\nby a comma and a space (e.g., Blue, Green, Red): ")
+        val_channel_color =  np.array(valcolor.split(", ")).astype(str)
+    else:
+        val_wvl = None
+    data_directory = input("Enter the name of the directory that contains\nin-situ measurements (e.g., InsituData): ")
+    IFN = [f for f in os.listdir(f'./misc/{DN}/{data_directory}/') if f.endswith('.ict')]
+    #b = np.array([39,126,138]).astype(int)#
+    #IFN2 = [IFN[i] for i in b]
+    for input_filename in IFN:#IFN2:#
         print(input_filename)
         # import the .ict data into a dictonary
-        (output_dict,time,date,alt,lat,lon,sd,
-            RH_amb,RH_sp,Sc,Abs,Ext,SSA,SSAa,fRH,full_wvl) = grab_ICT_Data(f'./misc/{DN}/InsituData/{input_filename}', modelist)
-        #print(input_filename)
-        if RH_amb.size > 1:
+        (output_dict, time, date, sd, Sc, Abs, RHsc, gamma)  = grab_ICT_Data(f'./misc/{DN}/{data_directory}/{input_filename}', modelist, full_wvl)
+        output_dict['SourceFlag'] = {}
+        output_dict['Dims'] = {}
+        for key in output_dict['VariableAttributes'].keys():
+            #if np.logical_not(isinstance(output_dict[key],dict)):
+            output_dict['SourceFlag'][key] = 'source'
+            output_dict['Dims'][key] = 'time'
 
-            #measured_coef_dry = np.vstack((Sc[0:3], Abs))
-            measured_ext_coef_dry = Ext[1, :]
-            measured_ssa_dry = SSA
-            measured_coef_wet = Sc['550']*fRH #Sc[0, :]
-            measured_ext_coef_wet = measured_coef_wet+Abs[1,:]
-            measured_ssa_wet = measured_coef_wet/measured_ext_coef_wet
-            measured_fRH = fRH      
-            #print(measured_coef_wet[np.where(np.logical_not(np.isnan(measured_coef_wet)))])
-            Lwvl = len(wvl)
-            Lwvl_s = int(Lwvl/2)
-            L1 = RH_amb.size
-
-            RRI_dry = np.full((1, L1),np.nan)
-            IRI_dry =  np.full((1, L1),np.nan)
-            CalScatCoef_dry = np.full((Lwvl_s, L1),np.nan)
-            CalAbsCoef_dry = np.full((Lwvl_s, L1),np.nan)
-            CalExtCoef_dry = np.full((Lwvl, L1),np.nan)
-            CalSSA_dry = np.full((Lwvl, L1),np.nan)
-            meas_coef_dry = np.full((Lwvl, L1),np.nan)
-            meas_coef_wet = np.full((1, L1),np.nan)
-            meas_ext_coef_dry = np.full((1, L1),np.nan)
-            meas_ssa_dry = np.full((3, L1),np.nan)
-            Kappa = np.full((1, L1),np.nan)
-            CalCoef_wet = np.full((Lwvl, L1),np.nan)
-            CalfRH = np.full((Lwvl, L1),np.nan)
-            CalExtCoef_wet = np.full((Lwvl, L1),np.nan)
-            CalSSA_wet = np.full((Lwvl, L1),np.nan)
-            meas_ext_coef_wet = np.full((1, L1),np.nan)
-            meas_ssa_amb = np.full((1, L1),np.nan)
-            meas_fRH = np.full((1, L1),np.nan) 
-            atmpt_cnt =  np.full((2, L1),np.nan)
-            full_dndlogdp =  np.full((maxdpglength, L1),np.nan)
-            # Loop through each of the rows here using multiprocessing. This will split the rows across multiple different cores. Each row will be its own index in `line_data` with a tuple full of information. So, for instance, line_data[0] will contain (CRI_dry, CalCoef_dry, meas_coef_dry, Kappa, CalCoef_wet, meas_coef_wet, results) for the first line of data
-            line_data = pool.map(
-                # This is a pain, I know, but all the data has to be cloned and accessible within each worker
-                handle_line(modelist, sd, dpg, dpu, dpl, UBcutoff, LBcutoff, measured_coef_dry, measured_ext_coef_dry, measured_ssa_dry,
-                            measured_coef_wet, measured_ext_coef_wet, measured_ssa_wet, measured_fRH,
-                            full_wvl, size_equ, CRI_p, nonabs_fraction, shape,
-                            RH_sp, kappa_p, num_theta, RH_amb, rho_wet, path_optical_dataset, path_mopsmap_executable, full_dp),
-                range(L1),
-            )
-            # Now that the data has been fetched, we have to join together all the results into aggregated arrays. The `enumerate` function simply loops through the elements in the array and attaches the associated array index to it.
-            for i1, line_data in enumerate(line_data):
-                (RRI_dry_line, IRI_dry_line, CalScatCoef_dry_line, CalAbsCoef_dry_line, CalExtCoef_dry_line, 
-                    CalSSA_dry_line, meas_coef_dry_line, meas_ext_coef_dry_line, meas_ssa_dry_line, Kappa_line, 
-                    CalCoef_wet_line, CalExtCoef_wet_line, CalSSA_wet_line, CalfRH_line, meas_coef_wet_line,
-                    meas_ext_coef_wet_line, meas_ssa_amb_line, meas_fRH_line, attempt_count_line, fullsd_line) = line_data#, results_line) = line_data       
-
-                # The general trend for merging the values is pretty simple. If the value is not None, that means that it has a value set because it was reached conditionally. Therefore, if it does have a value, we will just update that part of the array. Now, I know you're probably thinking "why are we doing all this work again." Well, true, it is repeated work, but this will allow for much faster times overall (well, that's the hope anyhow).
-                def merge_in(line_val, merged_vals):
-                    merged_vals[:, i1] = line_val   
-
-                merge_in(RRI_dry_line, RRI_dry)
-                merge_in(IRI_dry_line, IRI_dry)
-                merge_in(CalScatCoef_dry_line, CalScatCoef_dry)
-                merge_in(CalAbsCoef_dry_line, CalAbsCoef_dry)        
-                merge_in(CalExtCoef_dry_line, CalExtCoef_dry)
-                merge_in(CalSSA_dry_line, CalSSA_dry)
-                merge_in(meas_coef_dry_line, meas_coef_dry) 
-                merge_in(meas_ext_coef_dry_line, meas_ext_coef_dry)
-                merge_in(meas_ssa_dry_line, meas_ssa_dry)
-                merge_in(Kappa_line, Kappa)
-                merge_in(CalCoef_wet_line, CalCoef_wet)
-                merge_in(CalExtCoef_wet_line, CalExtCoef_wet)
-                merge_in(CalSSA_wet_line, CalSSA_wet)
-                merge_in(CalfRH_line, CalfRH)
-                merge_in(meas_coef_wet_line, meas_coef_wet)
-                merge_in(meas_ext_coef_wet_line, meas_ext_coef_wet)
-                merge_in(meas_ssa_amb_line, meas_ssa_amb)
-                merge_in(meas_fRH_line, meas_fRH)
-                merge_in(attempt_count_line, atmpt_cnt)
-                merge_in(fullsd_line, full_dndlogdp)
-            # From here on out, everything can continue as normal
-            output_dict['RRI_dry'] = RRI_dry
-            output_dict['IRI_dry'] = IRI_dry
-            output_dict['Kappa'] = Kappa     
-            output_dict['attempt_count_CRI'] = atmpt_cnt[0,:]
-            output_dict['attempt_count_kappa'] = atmpt_cnt[1,:]
-            dpgcount = 0
-            for i1 in full_dp["dpg"]:
-                output_dict[f'full_dndlogdp_{i1}'] = full_dndlogdp[dpgcount,:]
-                dpgcount += 1
-            #output_dict['full_dpg'] = full_dpg
-            #print(Kappa)
-            i0 = 0
-            for i1 in [0,3,5]:
-                output_dict[f'Cal_Sca_Coef_dry_{wvl[i1]}'] = CalScatCoef_dry[i0, :]
-                output_dict[f'Meas_Sca_Coef_dry_{wvl[i1]}'] = meas_coef_dry[i0, :]
-                output_dict[f'Meas_SSA_dry_{wvl[i1]}'] = meas_ssa_dry[i0, :]
-                i0 += 1
-            i0 = 0    
-            for i1 in [1,2,4]:
-                output_dict[f'Cal_Abs_Coef_dry_{wvl[i1]}'] = CalAbsCoef_dry[i0, :]
-                output_dict[f'Meas_Abs_Coef_dry_{wvl[i1]}'] = meas_coef_dry[i0+3, :]
-                i0 += 1
-            i0 = 0
-            for i1 in range(0, Lwvl, 1):
-                output_dict[f'Cal_Sca_Coef_wet_{wvl[i1]}'] = CalCoef_wet[i0, :]
-                output_dict[f'Cal_Ext_Coef_dry_{wvl[i1]}'] = CalExtCoef_dry[i0, :]
-                output_dict[f'Cal_Ext_Coef_wet_{wvl[i1]}'] = CalExtCoef_wet[i0, :]
-                output_dict[f'Cal_SSA_dry_{wvl[i1]}'] = CalSSA_dry[i0, :]
-                output_dict[f'Cal_SSA_wet_{wvl[i1]}'] = CalSSA_wet[i0, :]
-                output_dict[f'Cal_fRH_{wvl[i1]}'] = CalfRH[i0, :] 
-                i0 += 1  
-            
-            output_dict['Meas_Ext_Coef_dry_0.532'] = meas_ext_coef_dry   
-            output_dict['Meas_Sca_Coef_wet_0.55'] = meas_coef_wet
-            output_dict['Meas_Ext_Coef_wet_0.532'] = meas_ext_coef_wet
-            output_dict['Meas_SSA_amb_0.55'] = meas_ssa_amb
-            output_dict['Meas_fRH_0.55'] = meas_fRH   
+        if ((gamma.size > 1)&(len(Sc.keys()) > 1)):
+            L1 = gamma.size
+            output_dict['full_dp'] = full_dp
             output_dict["dpg"] = dpg
             output_dict["dpu"] = dpu
             output_dict["dpl"] = dpl
             output_dict["UBcutoff"] = UBcutoff
-            output_dict["LBcutoff"] = LBcutoff
-            output_dict["dpcutoffflg"] = dpcutoffflg
-            output_dict["maxdpglength"] = maxdpglength
-            output_dict["full_dpg"] = full_dp
-            
+            output_dict["LBcutoff"] = LBcutoff 
+            output_dict['VariableAttributes']["dry_RRI_unitless"] = {}
+            output_dict['VariableAttributes']["dry_RRI_unitless"]['short_name'] = 'dry_RRI'
+            output_dict['VariableAttributes']["dry_RRI_unitless"]['units'] = '1'
+            output_dict['VariableAttributes']["dry_RRI_unitless"]['long_name'] = 'Real refractive index of BULK particles at DRY relative humidity of 20% and STANDARD temperature and pressure derived from ISARA.'
+            output_dict['VariableAttributes']["dry_RRI_unitless"]['ACVSNC_standard_name'] = 'AerOpt_m_InSitu_BluetoRed_RHd_Bulk_STP'
+            output_dict['VariableAttributes']["dry_IRI_unitless"] = {}
+            output_dict['VariableAttributes']["dry_IRI_unitless"]['short_name'] = 'dry_IRI'
+            output_dict['VariableAttributes']["dry_IRI_unitless"]['units'] = '1'
+            output_dict['VariableAttributes']["dry_IRI_unitless"]['long_name'] = 'Imaginary refractive index of BULK particles at DRY relative humidity of 20% and STANDARD temperature and pressure derived from ISARA.'
+            output_dict['VariableAttributes']["dry_IRI_unitless"]['ACVSNC_standard_name'] = 'AerOpt_k_InSitu_BluetoRed_RHd_Bulk_STP'
+            output_dict['VariableAttributes']['dry_rho_g.cm-3'] = {}
+            output_dict['VariableAttributes']["dry_rho_g.cm-3"]['short_name'] = 'dry_rho'
+            output_dict['VariableAttributes']["dry_rho_g.cm-3"]['units'] = 'g.cm-3'
+            output_dict['VariableAttributes']["dry_rho_g.cm-3"]['long_name'] = 'Effective particle density of BULK particles at DRY relative humidity of 20% and STANDARD temperature and pressure derived from ISARA.'
+            output_dict['VariableAttributes']["dry_rho_g.cm-3"]['ACVSNC_standard_name'] = 'none'    
+            output_dict['VariableAttributes']['peak_diameter_um'] = {}
+            output_dict['VariableAttributes']["peak_diameter_um"]['short_name'] = 'peak_diameter'
+            output_dict['VariableAttributes']["peak_diameter_um"]['units'] = 'um'
+            output_dict['VariableAttributes']["peak_diameter_um"]['long_name'] = 'Peak dry diameter of APS size distribution.'
+            output_dict['VariableAttributes']["peak_diameter_um"]['ACVSNC_standard_name'] = 'none'   
+            output_dict['VariableAttributes']['attempt_flag_CRI_unitless'] = {}
+            output_dict['VariableAttributes']["attempt_flag_CRI_unitless"]['short_name'] = 'attempt_flag_CRI'
+            output_dict['VariableAttributes']["attempt_flag_CRI_unitless"]['long_name'] = 'Flags points where all measurements required for ISARA CRI retrieval and whether or not CRI was successfully retrieved.'
+            output_dict['VariableAttributes']["attempt_flag_CRI_unitless"]['flag_values'] = '0 1 2'   
+            output_dict['VariableAttributes']["attempt_flag_CRI_unitless"]['flag_meanings'] = 'no_attempt attempt success' 
+            output_dict['VariableAttributes']['attempt_flag_kappa_unitless'] = {}
+            output_dict['VariableAttributes']["attempt_flag_kappa_unitless"]['short_name'] = 'attempt_flag_kappa'
+            output_dict['VariableAttributes']["attempt_flag_kappa_unitless"]['long_name'] = 'Flags points where all measurements required for ISARA CRI and kappa retrieval and whether or not kappa was successfully retrieved.'
+            output_dict['VariableAttributes']["attempt_flag_kappa_unitless"]['flag_values'] = '0 1 2'   
+            output_dict['VariableAttributes']["attempt_flag_kappa_unitless"]['flag_meanings'] = 'no_attempt attempt success' 
+            output_dict['VariableAttributes']["cal_fRH_550_unitless"] = {}    
+            output_dict['VariableAttributes']["cal_fRH_550_unitless"]['short_name'] = 'cal_fRH'
+            output_dict['VariableAttributes']["cal_fRH_550_unitless"]['units'] = '1'
+            output_dict['VariableAttributes']["cal_fRH_550_unitless"]['long_name'] = 'Optical hygrsocopic growth factor at 550 nm of BULK particles derived from ISARA.'
+            output_dict['VariableAttributes']["cal_fRH_550_unitless"]['ACVSNC_standard_name'] = 'AerOpt_fRHScat_InSitu_Green_RHd_Bulk_None'
+            output_dict['VariableAttributes']["meas_fRH_550_unitless"] = {}    
+            output_dict['VariableAttributes']["meas_fRH_550_unitless"]['short_name'] = 'meas_fRH'
+            output_dict['VariableAttributes']["meas_fRH_550_unitless"]['units'] = '1'
+            output_dict['VariableAttributes']["meas_fRH_550_unitless"]['long_name'] = 'Optical hygrsocopic growth factor at 550 nm of BULK particles derived from gamma measurement.'
+            output_dict['VariableAttributes']["meas_fRH_550_unitless"]['ACVSNC_standard_name'] = 'AerOpt_fRHScat_InSitu_Green_RHd_Bulk_None'
+            output_dict['VariableAttributes']["kappa_unitless"] = {}
+            output_dict['VariableAttributes']["kappa_unitless"]['short_name'] = 'kappa'
+            output_dict['VariableAttributes']["kappa_unitless"]['units'] = '1'
+            output_dict['VariableAttributes']["kappa_unitless"]['long_name'] = 'Hygroscopicity of BULK particles derived from ISARA.'
+            output_dict['VariableAttributes']["kappa_unitless"]['ACVSNC_standard_name'] = 'AerMP_gRH_InSitu_None_Optical_Bulk_None' 
+            for i2 in range(len(full_wvl["Sc"])):
+                sc_wvl = full_wvl["Sc"][i2]
+                abs_wvl = full_wvl["Abs"][i2]
+                color_dry_wvl = dry_channel_color[i2]
+                output_dict['VariableAttributes'][f'dry_meas_sca_coef_{sc_wvl}_m-1'] = {}
+                output_dict['VariableAttributes'][f'dry_meas_sca_coef_{sc_wvl}_m-1']['short_name'] = f'dry_meas_sca_coef_{sc_wvl}'
+                output_dict['VariableAttributes'][f'dry_meas_sca_coef_{sc_wvl}_m-1']['units'] = 'm-1'
+                output_dict['VariableAttributes'][f'dry_meas_sca_coef_{sc_wvl}_m-1']['long_name'] = f'Scattering coefficient at {sc_wvl} nm of BULK particles at DRY relative humidity of 20% and STANDARD temperature and pressure derived from gamma and scattering measurement at specified relative humidity.'
+                output_dict['VariableAttributes'][f'dry_meas_sca_coef_{sc_wvl}_m-1']['ACVSNC_standard_name'] = f'AerOpt_Scattering_InSitu_{color_dry_wvl}_RHd_Bulk_STP'
+                output_dict['VariableAttributes'][f'dry_meas_abs_coef_{abs_wvl}_m-1'] = {}
+                output_dict['VariableAttributes'][f'dry_meas_abs_coef_{abs_wvl}_m-1']['short_name'] = f'dry_meas_abs_coef_{abs_wvl}'
+                output_dict['VariableAttributes'][f'dry_meas_abs_coef_{abs_wvl}_m-1']['units'] = 'm-1'
+                output_dict['VariableAttributes'][f'dry_meas_abs_coef_{abs_wvl}_m-1']['long_name'] = f'Absorption coefficient at {abs_wvl} nm of BULK particles at DRY relative humidity of 20% and STANDARD temperature and pressure derived from absorption measurement.'
+                output_dict['VariableAttributes'][f'dry_meas_abs_coef_{abs_wvl}_m-1']['ACVSNC_standard_name'] = f'AerOpt_Absorption_InSitu_{color_dry_wvl}_RHd_Bulk_STP'
+                output_dict['VariableAttributes'][f'dry_cal_sca_coef_{sc_wvl}_m-1'] = {}
+                output_dict['VariableAttributes'][f'dry_cal_sca_coef_{sc_wvl}_m-1']['short_name'] = f'dry_cal_sca_coef_{sc_wvl}'
+                output_dict['VariableAttributes'][f'dry_cal_sca_coef_{sc_wvl}_m-1']['units'] = 'm-1'
+                output_dict['VariableAttributes'][f'dry_cal_sca_coef_{sc_wvl}_m-1']['long_name'] = f'Scattering coefficient at {sc_wvl} nm of BULK particles at DRY relative humidity of 20% and STANDARD temperature and pressure derived from ISARA.'
+                output_dict['VariableAttributes'][f'dry_cal_sca_coef_{sc_wvl}_m-1']['ACVSNC_standard_name'] = f'AerOpt_Scattering_InSitu_{color_dry_wvl}_RHd_Bulk_STP'
+                output_dict['VariableAttributes'][f'dry_cal_abs_coef_{abs_wvl}_m-1'] = {}
+                output_dict['VariableAttributes'][f'dry_cal_abs_coef_{abs_wvl}_m-1']['short_name'] = f'dry_cal_abs_coef_{abs_wvl}'
+                output_dict['VariableAttributes'][f'dry_cal_abs_coef_{abs_wvl}_m-1']['units'] = 'm-1'
+                output_dict['VariableAttributes'][f'dry_cal_abs_coef_{abs_wvl}_m-1']['long_name'] = f'Absorption coefficient at {abs_wvl} nm of BULK particles at DRY relative humidity of 20% and STANDARD temperature and pressure derived from ISARA.'
+                output_dict['VariableAttributes'][f'dry_cal_abs_coef_{abs_wvl}_m-1']['ACVSNC_standard_name'] = f'AerOpt_Absorption_InSitu_{color_dry_wvl}_RHd_Bulk_STP'
+                output_dict['VariableAttributes'][f'dry_cal_SSA_{sc_wvl}_unitless'] = {}
+                output_dict['VariableAttributes'][f'dry_cal_SSA_{sc_wvl}_unitless']['short_name'] = f'dry_cal_SSA_{sc_wvl}'
+                output_dict['VariableAttributes'][f'dry_cal_SSA_{sc_wvl}_unitless']['units'] = '1'
+                output_dict['VariableAttributes'][f'dry_cal_SSA_{sc_wvl}_unitless']['long_name'] = f'Single scattering albedo at {sc_wvl} nm of BULK particles at DRY relative humidity of 20% and STANDARD temperature and pressure derived from ISARA.'
+                output_dict['VariableAttributes'][f'dry_cal_SSA_{sc_wvl}_unitless']['ACVSNC_standard_name'] = f'AerOpt_SSA_InSitu_{color_dry_wvl}_RHd_Bulk_None'
+                output_dict['VariableAttributes'][f'dry_cal_SSA_{abs_wvl}_unitless'] = {}
+                output_dict['VariableAttributes'][f'dry_cal_SSA_{abs_wvl}_unitless']['short_name'] = f'dry_cal_SSA_{abs_wvl}'
+                output_dict['VariableAttributes'][f'dry_cal_SSA_{abs_wvl}_unitless']['units'] = '1'
+                output_dict['VariableAttributes'][f'dry_cal_SSA_{abs_wvl}_unitless']['long_name'] = f'Single scattering albedo at {abs_wvl} nm of BULK particles at DRY relative humidity of 20% derived from ISARA.'
+                output_dict['VariableAttributes'][f'dry_cal_SSA_{abs_wvl}_unitless']['ACVSNC_standard_name'] = f'AerOpt_SSA_InSitu_{color_dry_wvl}_RHd_Bulk_None'
+                output_dict['VariableAttributes'][f'dry_cal_ext_coef_{sc_wvl}_m-1'] = {}
+                output_dict['VariableAttributes'][f'dry_cal_ext_coef_{sc_wvl}_m-1']['short_name'] = f'dry_cal_ext_coef_{sc_wvl}'
+                output_dict['VariableAttributes'][f'dry_cal_ext_coef_{sc_wvl}_m-1']['units'] = 'm-1'
+                output_dict['VariableAttributes'][f'dry_cal_ext_coef_{sc_wvl}_m-1']['long_name'] = f'Extinction coefficient at {sc_wvl} nm of BULK particles at DRY relative humidity of 20% and STANDARD temperature and pressure derived from ISARA.'
+                output_dict['VariableAttributes'][f'dry_cal_ext_coef_{sc_wvl}_m-1']['ACVSNC_standard_name'] = f'AerOpt_Extinction_InSitu_{color_dry_wvl}_RHd_Bulk_STP'
+                output_dict['VariableAttributes'][f'dry_cal_ext_coef_{abs_wvl}_m-1'] = {}
+                output_dict['VariableAttributes'][f'dry_cal_ext_coef_{abs_wvl}_m-1']['short_name'] = f'dry_cal_ext_coef_{abs_wvl}'
+                output_dict['VariableAttributes'][f'dry_cal_ext_coef_{abs_wvl}_m-1']['units'] = 'm-1'
+                output_dict['VariableAttributes'][f'dry_cal_ext_coef_{abs_wvl}_m-1']['long_name'] = f'Extinction coefficient at {abs_wvl} nm of BULK particles at DRY relative humidity of 20% and STANDARD temperature and pressure derived from ISARA.'
+                output_dict['VariableAttributes'][f'dry_cal_ext_coef_{abs_wvl}_m-1']['ACVSNC_standard_name'] = f'AerOpt_Extinction_InSitu_{color_dry_wvl}_RHd_Bulk_STP'          
 
+            for i2 in range(len(full_wvl2["Sc"])):
+                wet_wvl = full_wvl2["Sc"][i2]
+                color_wet_wvl = wet_channel_color[i2]
+                output_dict['VariableAttributes'][f'wet_meas_sca_coef_{wet_wvl}_m-1'] = {}
+                output_dict['VariableAttributes'][f'wet_meas_sca_coef_{wet_wvl}_m-1']['short_name'] = f'wet_meas_sca_coef_{wet_wvl}'
+                output_dict['VariableAttributes'][f'wet_meas_sca_coef_{wet_wvl}_m-1']['units'] = 'm-1'
+                output_dict['VariableAttributes'][f'wet_meas_sca_coef_{wet_wvl}_m-1']['long_name'] = f'Scattering coefficient at {wet_wvl} nm of BULK particles at WET relative humidity of 80% and STANDARD temperature and pressure derived from gamma and scattering measurement at specified relative humidity.'
+                output_dict['VariableAttributes'][f'wet_meas_sca_coef_{wet_wvl}_m-1']['ACVSNC_standard_name'] = f'AerOpt_Scattering_InSitu_{color_wet_wvl}_RHsp_Bulk_STP'
+                output_dict['VariableAttributes'][f'wet_meas_ext_coef_{wet_wvl}_m-1'] = {}
+                output_dict['VariableAttributes'][f'wet_meas_ext_coef_{wet_wvl}_m-1']['short_name'] = f'wet_meas_ext_coef_{wet_wvl}'
+                output_dict['VariableAttributes'][f'wet_meas_ext_coef_{wet_wvl}_m-1']['units'] = 'm-1'
+                output_dict['VariableAttributes'][f'wet_meas_ext_coef_{wet_wvl}_m-1']['long_name'] = f'Extinction coefficient at {wet_wvl} nm of BULK particles at WET relative humidity of 80% and STANDARD temperature and pressure derived from humidified scattering and dry absorption.'
+                output_dict['VariableAttributes'][f'wet_meas_ext_coef_{wet_wvl}_m-1']['ACVSNC_standard_name'] = f'AerOpt_Extinction_InSitu_{color_wet_wvl}_RHsp_Bulk_STP'
+                output_dict['VariableAttributes'][f'wet_cal_sca_coef_{wet_wvl}_m-1'] = {}
+                output_dict['VariableAttributes'][f'wet_cal_sca_coef_{wet_wvl}_m-1']['short_name'] = f'wet_cal_sca_coef_{wet_wvl}'
+                output_dict['VariableAttributes'][f'wet_cal_sca_coef_{wet_wvl}_m-1']['units'] = 'm-1'
+                output_dict['VariableAttributes'][f'wet_cal_sca_coef_{wet_wvl}_m-1']['long_name'] = f'Scattering coefficient at {wet_wvl} nm of BULK particles at WET relative humidity of 80% and STANDARD temperature and pressure derived derived from ISARA.'
+                output_dict['VariableAttributes'][f'wet_cal_sca_coef_{wet_wvl}_m-1']['ACVSNC_standard_name'] = f'AerOpt_Scattering_InSitu_{color_wet_wvl}_RHsp_Bulk_STP'
+                output_dict['VariableAttributes'][f'wet_cal_SSA_{wet_wvl}_unitless'] = {}
+                output_dict['VariableAttributes'][f'wet_cal_SSA_{wet_wvl}_unitless']['short_name'] = f'wet_cal_SSA_{wet_wvl}'
+                output_dict['VariableAttributes'][f'wet_cal_SSA_{wet_wvl}_unitless']['units'] = '1'
+                output_dict['VariableAttributes'][f'wet_cal_SSA_{wet_wvl}_unitless']['long_name'] = f'Single scattering albedo at {wet_wvl} nm of BULK particles at WET relative humidity of 80% and STANDARD temperature and pressure derived derived from ISARA.'
+                output_dict['VariableAttributes'][f'wet_cal_SSA_{wet_wvl}_unitless']['ACVSNC_standard_name'] = f'AerOpt_SSA_InSitu_{color_wet_wvl}_RHsp_Bulk_None'
+                output_dict['VariableAttributes'][f'wet_cal_ext_coef_{wet_wvl}_m-1'] = {}
+                output_dict['VariableAttributes'][f'wet_cal_ext_coef_{wet_wvl}_m-1']['short_name'] = f'wet_cal_ext_coef_{wet_wvl}'
+                output_dict['VariableAttributes'][f'wet_cal_ext_coef_{wet_wvl}_m-1']['units'] = 'm-1'
+                output_dict['VariableAttributes'][f'wet_cal_ext_coef_{wet_wvl}_m-1']['long_name'] = f'Extinction coefficient at {wet_wvl} nm of BULK particles at WET relative humidity of 80% and STANDARD temperature and pressure derived from ISARA.'
+                output_dict['VariableAttributes'][f'wet_cal_ext_coef_{wet_wvl}_m-1']['ACVSNC_standard_name'] = f'AerOpt_Extinction_InSitu_{color_wet_wvl}_RHsp_Bulk_STP'
+
+            if val_wvl is not None:
+                for i2 in range(len(val_wvl)):
+                    valwvl = val_wvl[i2]
+                    color_val_wvl = val_channel_color[i2]
+                    output_dict['VariableAttributes'][f'dry_cal_sca_coef_{valwvl}_m-1'] = {}
+                    output_dict['VariableAttributes'][f'dry_cal_sca_coef_{valwvl}_m-1']['short_name'] = f'dry_cal_sca_coef_{valwvl}'
+                    output_dict['VariableAttributes'][f'dry_cal_sca_coef_{valwvl}_m-1']['units'] = 'm-1'
+                    output_dict['VariableAttributes'][f'dry_cal_sca_coef_{valwvl}_m-1']['long_name'] =  f'Scattering coefficient at {valwvl} nm of BULK particles at DRY relative humidity of 20% and STANDARD temperature and pressure derived from ISARA.'
+                    output_dict['VariableAttributes'][f'dry_cal_sca_coef_{valwvl}_m-1']['ACVSNC_standard_name'] = f'AerOpt_Scattering_InSitu_{color_val_wvl}_RHd_Bulk_STP'
+                    output_dict['VariableAttributes'][f'dry_cal_SSA_{valwvl}_unitless'] = {}
+                    output_dict['VariableAttributes'][f'dry_cal_SSA_{valwvl}_unitless']['short_name'] = f'dry_cal_SSA_{valwvl}'
+                    output_dict['VariableAttributes'][f'dry_cal_SSA_{valwvl}_unitless']['units'] = '1'
+                    output_dict['VariableAttributes'][f'dry_cal_SSA_{valwvl}_unitless']['long_name'] = f'Single scattering albedo at {valwvl} nm of BULK particles at DRY relative humidity of 20% and STANDARD temperature and pressure derived from ISARA.'
+                    output_dict['VariableAttributes'][f'dry_cal_SSA_{valwvl}_unitless']['ACVSNC_standard_name'] = f'AerOpt_SSA_InSitu_{color_val_wvl}_RHd_Bulk_None'
+                    output_dict['VariableAttributes'][f'dry_cal_ext_coef_{valwvl}_m-1'] = {}
+                    output_dict['VariableAttributes'][f'dry_cal_ext_coef_{valwvl}_m-1']['short_name'] = f'dry_cal_ext_coef_{valwvl}'
+                    output_dict['VariableAttributes'][f'dry_cal_ext_coef_{valwvl}_m-1']['units'] = 'm-1'
+                    output_dict['VariableAttributes'][f'dry_cal_ext_coef_{valwvl}_m-1']['long_name'] = f'Extinction coefficient at {valwvl} nm of BULK particles at DRY relative humidity of 20% and STANDARD temperature and pressure derived from ISARA.'
+                    output_dict['VariableAttributes'][f'dry_cal_ext_coef_{valwvl}_m-1']['ACVSNC_standard_name'] = f'AerOpt_Extinction_InSitu_{color_val_wvl}_RHd_Bulk_STP'
+                    output_dict['VariableAttributes'][f'wet_cal_sca_coef_{valwvl}_m-1'] = {}
+                    output_dict['VariableAttributes'][f'wet_cal_sca_coef_{valwvl}_m-1']['short_name'] = f'wet_cal_sca_coef_{valwvl}'
+                    output_dict['VariableAttributes'][f'wet_cal_sca_coef_{valwvl}_m-1']['units'] = 'm-1'
+                    output_dict['VariableAttributes'][f'wet_cal_sca_coef_{valwvl}_m-1']['long_name'] = f'Scattering coefficient at {valwvl} nm of BULK particles at WET relative humidity of 80% and STANDARD temperature and pressure derived derived from ISARA.'
+                    output_dict['VariableAttributes'][f'wet_cal_sca_coef_{valwvl}_m-1']['ACVSNC_standard_name'] = f'AerOpt_Scattering_InSitu_{color_val_wvl}_RHsp_Bulk_STP'
+                    output_dict['VariableAttributes'][f'wet_cal_SSA_{valwvl}_unitless'] = {}
+                    output_dict['VariableAttributes'][f'wet_cal_SSA_{valwvl}_unitless']['short_name'] = f'wet_cal_SSA_{valwvl}'
+                    output_dict['VariableAttributes'][f'wet_cal_SSA_{valwvl}_unitless']['units'] = '1'
+                    output_dict['VariableAttributes'][f'wet_cal_SSA_{valwvl}_unitless']['long_name'] = f'Single scattering albedo at {valwvl} nm of BULK particles at WET relative humidity of 80% and STANDARD temperature and pressure derived derived from ISARA.'
+                    output_dict['VariableAttributes'][f'wet_cal_SSA_{valwvl}_unitless']['ACVSNC_standard_name'] = f'AerOpt_SSA_InSitu_{color_val_wvl}_RHsp_Bulk_None'
+                    output_dict['VariableAttributes'][f'wet_cal_ext_coef_{valwvl}_m-1'] = {}
+                    output_dict['VariableAttributes'][f'wet_cal_ext_coef_{valwvl}_m-1']['short_name'] = f'wet_cal_ext_coef_{valwvl}'
+                    output_dict['VariableAttributes'][f'wet_cal_ext_coef_{valwvl}_m-1']['units'] = 'm-1'
+                    output_dict['VariableAttributes'][f'wet_cal_ext_coef_{valwvl}_m-1']['long_name'] = f'Extinction coefficient at {valwvl} nm of BULK particles at WET relative humidity of 80% and STANDARD temperature and pressure derived from ISARA.'
+                    output_dict['VariableAttributes'][f'wet_cal_ext_coef_{valwvl}_m-1']['ACVSNC_standard_name'] = f'AerOpt_Extinction_InSitu_{color_val_wvl}_RHsp_Bulk_STP'  
+
+            # Loop through each of the rows here using multiprocessing. This will split the rows across multiple different cores. Each row will be its own index in `line_data` 
+            # with a tuple full of information. So, for instance, line_data[0] will contain (CRI_dry, CalCoef_dry, meas_coef_dry, Kappa, CalCoef_wet, meas_coef_wet, results) 
+            # for the first line of data
+            line_data = pool.map(
+                # This is a pain, I know, but all the data has to be cloned and accessible within each worker
+                handle_line(modelist, sd, dpg, dpu, dpl, UBcutoff, LBcutoff, Sc, Abs, RHsc, gamma, 
+                            full_wvl, full_wvl2, val_wvl, size_equ, CRI_p, nonabs_fraction, shape,
+                            kappa_p, num_theta, rho_wet, path_optical_dataset, path_mopsmap_executable, full_dp),
+                range(L1),
+            )
+
+            # Now that the data has been fetched, we have to join together all the results into aggregated arrays. The `enumerate` function simply loops through the elements in 
+            # the array and attaches the associated array index to it.
+            # The general trend for merging the values is pretty simple. If the value is not None, that means that it has a value set because it was reached conditionally. 
+            #Therefore, if it does have a value, we will just update that part of the array. Now, I know you're probably thinking "why are we doing all this work again." Well, 
+            # true, it is repeated work, but this will allow for much faster times overall (well, that's the hope anyhow).
+            # def merge_in(line_val, merged_vals):
+            for i1, line_data in enumerate(line_data):
+                (results_line) = line_data   
+                for key2 in results_line:
+                    if key2 in output_dict:
+                        output_dict[key2][i1] = results_line[key2]
+                    else:
+                        output_dict[key2] = np.full((L1),np.nan)
+                        output_dict['SourceFlag'][key2] = 'derived' 
+                        output_dict['Dims'][key2] = 'time'
+                        if key2 in output_dict['VariableAttributes']:
+                            output_dict['VariableAttributes'][key2]['_FillValue'] = np.nan
+                        else:
+                            output_dict['VariableAttributes'][key2] = {}
+                            output_dict['VariableAttributes'][key2]['_FillValue'] = np.nan
+                        output_dict[key2][i1] = results_line[key2]
+            print(output_dict["kappa_unitless"].size)           
             output_filename = np.array(input_filename.split('.ict'))
             output_filename = output_filename[0]
             np.save(f'{output_filename}.npy', output_dict)  
