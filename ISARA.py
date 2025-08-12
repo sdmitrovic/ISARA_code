@@ -65,6 +65,8 @@ def Retr_CRI(wvl_dict,
   Results = dict()  
   Results["dry_RRI_unitless"] = None
   Results["dry_IRI_unitless"] = None
+  ref_scat_coef = np.full((L2),np.nan)## prepare arrays of measured scattering and absorption coefficients
+  ref_abs_coef = np.full((L2),np.nan)  
   for i2 in range(L2):
     Results[f'dry_cal_sca_coef_{wvl_dict["Sc"][i2]}_m-1'] = None
     Results[f'dry_cal_abs_coef_{wvl_dict["Abs"][i2]}_m-1'] = None
@@ -72,6 +74,10 @@ def Retr_CRI(wvl_dict,
     Results[f'dry_cal_SSA_{wvl_dict["Abs"][i2]}_unitless'] = None
     Results[f'dry_cal_ext_coef_{wvl_dict["Sc"][i2]}_m-1'] = None
     Results[f'dry_cal_ext_coef_{wvl_dict["Abs"][i2]}_m-1'] = None
+    ## Assign values to prepared measured coefficients
+    ref_scat_coef[i2] = optical_measurements[f'dry_meas_sca_coef_{wvl_dict["Sc"][i2]}_m-1']
+    ref_abs_coef[i2] = optical_measurements[f'dry_meas_abs_coef_{wvl_dict["Abs"][i2]}_m-1']
+    ##
   ##
   for i1 in range(L1): # initiate loop through possible cri values
     ## assign the rri and iri for to each size mode.
@@ -82,11 +88,9 @@ def Retr_CRI(wvl_dict,
       IRI_p[imode] = CRI_p[i1,1]
     ##  
     results = MMModel(wvl,size_equ,sd,dpg,RRI_p,IRI_p,nonabs_fraction,shape,rho,0,0,num_theta,path_optical_dataset,path_mopsmap_executable) # calculate microphysical properties for a given cri
-    ref_scat_coef = np.full((L2),np.nan)## prepare arrays of measured scattering and absorption coefficients
-    ref_abs_coef = np.full((L2),np.nan)
     scat_coef = np.full((L2),np.nan)## prepare arrays of calculated scattering and absorption coefficients
-    abs_coef = np.full((L2),np.nan)
-    ## Assign values to prepared measured and calculated coefficients
+    abs_coef = np.full((L2),np.nan)  
+    ## Assign values to prepared calculated coefficients
     for i2 in range(L2):
       scat_coef[i2] = results[f'ssa_{wvl_dict["Sc"][i2]}']*results[f'ext_coeff_{wvl_dict["Sc"][i2]}_m-1']
       abs_coef[i2] = results[f'ext_coeff_{wvl_dict["Abs"][i2]}_m-1']-results[f'ssa_{wvl_dict["Abs"][i2]}']*results[f'ext_coeff_{wvl_dict["Abs"][i2]}_m-1'] 
@@ -96,16 +100,19 @@ def Retr_CRI(wvl_dict,
     ##
     Cdif1 = abs(ref_scat_coef-scat_coef)/ref_scat_coef # calculate absolute relative difference of scattering coefficients in each channel
     Cdif2 = abs(ref_abs_coef-abs_coef)# calculate absolute difference of absoprtion coefficients in each channel
+
     ## check if relative difference in scattering coefficient is within 20% for all and channels that the difference in absorption coefficient is within 1 Mm-1 for all channels
-    a1 = ((Cdif1)<0.2).astype('int')
-    #a1[np.isinf(a1)]=0
-    a2 = ((Cdif2)<2*pow(10,-6)).astype('int')#
+    a1 = ((Cdif1)<0.2).astype('int')#a1[np.isinf(a1)]=0
+    a2 = ((Cdif2)<pow(10,-6)).astype('int')#
     if np.sum(a1)==L2 & np.sum(a2)==L2:
       iri[i1] = CRI_p[i1,1]
       rri[i1] = CRI_p[i1,0]
     ##    
 
   flgs = np.logical_not(np.isnan(rri)) # flag valid solutions
+  
+  #pause()
+  #print(ref_abs_coef*10**6,abs_coef*10**6,'\n')
   if np.sum(rri[flgs])>0: # check to see if any valid solutions exist 
     ## take mean rri and iri of all valid solutions and recalculate aerosol properties with mean cri values.    
     rri = np.mean(rri[flgs]) 
@@ -120,15 +127,16 @@ def Retr_CRI(wvl_dict,
     ## same as before, check for to ensure recalculated scattering coefficients are within 20% and absorption coefficients are with 1 Mm-1 when using mean cri
     scat_coef = np.full((L2),np.nan)
     abs_coef = np.full((L2),np.nan)
+
     for i2 in range(L2):
       scat_coef[i2] = results[f'ssa_{wvl_dict["Sc"][i2]}']*results[f'ext_coeff_{wvl_dict["Sc"][i2]}_m-1']
       abs_coef[i2] = results[f'ext_coeff_{wvl_dict["Abs"][i2]}_m-1']-results[f'ssa_{wvl_dict["Abs"][i2]}']*results[f'ext_coeff_{wvl_dict["Abs"][i2]}_m-1'] 
-    Cdif1 = abs(ref_scat_coef-scat_coef)/ref_scat_coef
-    Cdif2 = abs(ref_abs_coef-abs_coef)
-    a1 = ((Cdif1)<0.2).astype('int')
+
+    Cd1 = abs(ref_scat_coef-scat_coef)/ref_scat_coef
+    Cd2 = abs(ref_abs_coef-abs_coef)
+    a1 = ((Cd1)<0.2).astype('int')
     #a1[np.isinf(a1)]=0
-    a2 = ((Cdif2)<2*pow(10,-6)).astype('int')
-    ##
+    a2 = ((Cd2)<pow(10,-6)).astype('int')
     if np.sum(a1)==L2 & np.sum(a2)==L2: #np.sum(a1)==L2 & np.sum(a2)==L2: # if solution is valid, store dry cri and dry calculated extinction, scattering, and absorption coefficients and SSA in all measured wavelengths
       Results["dry_RRI_unitless"] = rri
       Results["dry_IRI_unitless"] = iri
@@ -153,6 +161,7 @@ def Retr_CRI(wvl_dict,
           Results[f'dry_cal_ext_coef_{val_wvl[iwvl]}_m-1'] = results[f'ext_coeff_{val_wvl[iwvl]}_m-1']        
     
   return Results # return dictionary (Results) of dry cri and dry calculated extinction, scattering, and absorption coefficients and SSA in all measured and validation wavelengths
+
 
 def Retr_kappa(wvl_dict,
   val_wvl, 

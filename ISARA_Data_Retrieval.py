@@ -97,20 +97,23 @@ def RunISARA():
             iwvl = 0        
             for kwvl in measured_Abs_dry: 
                 finalout[f'dry_meas_abs_coef_{full_wvl["Abs"][iwvl]}_m-1'] = np.multiply(measured_Abs_dry[kwvl][i1], pow(10, -6))
-                if finalout[f'dry_meas_abs_coef_{full_wvl["Abs"][iwvl]}_m-1']>=0:
-                    measflg += 1
+
+                if (np.logical_not(np.isnan(finalout[f'dry_meas_abs_coef_{full_wvl["Abs"][iwvl]}_m-1']))&(finalout[f'dry_meas_abs_coef_{full_wvl["Abs"][iwvl]}_m-1']>=0)):
+                    measflg += 1 
                 iwvl += 1    
 
             iwvl = 0
             keycheck = None                          
             for kwvl in measured_Sc_dry: 
+                
                 if RHsc[i1]>40:
                     finalout[f'dry_meas_sca_coef_{full_wvl["Sc"][iwvl]}_m-1'] = np.multiply(measured_Sc_dry[kwvl][i1], pow(10, -6))/(np.exp(gamma[i1]*np.log((100-40)/(100-RHsc[i1]))))#scat_calc=scat_rh=measured(e^(GAMMA*ln((100-calcRH)/(100-measRH))))
                 else:
                     finalout[f'dry_meas_sca_coef_{full_wvl["Sc"][iwvl]}_m-1'] = np.multiply(measured_Sc_dry[kwvl][i1], pow(10, -6))
                 keycheck = kwvl     
-                if finalout[f'dry_meas_sca_coef_{full_wvl["Sc"][iwvl]}_m-1']>=10**(-6):#
+                if (np.logical_not(np.isnan(finalout[f'dry_meas_sca_coef_{full_wvl["Sc"][iwvl]}_m-1']))&(finalout[f'dry_meas_sca_coef_{full_wvl["Sc"][iwvl]}_m-1']>10**(-6))):
                     measflg += 1
+
                 if kwvl.__contains__(str(full_wvl["Sc"][1])):
                     finalout[f'wet_meas_sca_coef_{full_wvl["Sc"][1]}_m-1'] = np.multiply(measured_Sc_dry[kwvl][i1], pow(10, -6))/(np.exp(gamma[i1]*np.log((100-80)/(100-RHsc[i1]))))
                     finalout[f'wet_meas_ext_coef_{full_wvl["Sc"][1]}_m-1'] = finalout[f'wet_meas_sca_coef_{full_wvl["Sc"][1]}_m-1']+finalout[f'dry_meas_abs_coef_{full_wvl["Abs"][1]}_m-1']
@@ -122,6 +125,8 @@ def RunISARA():
             dndlogdp = {}
             for imode in sd:
                 dndlogdp[imode] = np.multiply(sd[imode][:, i1], pow(10, 6))
+                #dndlogdp[imode][np.where(np.isnan(dndlogdp[imode]))[0]] = 0
+
             if "APS" in modelist[:]:
                 output_dictionary_1 = APS_rho.Align(dpg["UHSAS"],dndlogdp["UHSAS"],dpg["APS"],dndlogdp["APS"])
                 rho_dry = output_dictionary_1["rho"]
@@ -150,7 +155,7 @@ def RunISARA():
             fulldpl = None
             for imode in sd:
                 icount += 1
-                if len(dpg[imode]) > 3:
+                if len(dpg[imode]) > 0:
                     if imode == "APS":
                         a = np.divide(dpl[imode],np.sqrt(rho_dry))
                         b = np.divide(dpu[imode],np.sqrt(rho_dry))
@@ -159,7 +164,7 @@ def RunISARA():
                         modeflg = np.where(np.logical_not(np.isnan(dndlogdp[imode]))&(dpl[imode]>=LBcutoff[imode])&(dpu[imode]<=UBcutoff[imode]))[0]
                     
                     Dndlogdp[imode] = dndlogdp[imode][modeflg] 
-                    if len(Dndlogdp[imode]) > 3:
+                    if len(Dndlogdp[imode]) > 0:
                         dpflg += 1
                         Size_equ[imode] = size_equ
                         Nonabs_fraction[imode] = nonabs_fraction
@@ -201,25 +206,29 @@ def RunISARA():
                     finalout[f'dpl_bin{idpg}_um'] = full_dpl[idpg]
                     finalout[f'dpg_bin{idpg}_um'] = full_dpg[idpg]
                     finalout[f'dpu_bin{idpg}_um'] = full_dpu[idpg]          
-            
+
+                #measflg = np.where((np.logical_not(np.isnan(meas_coef))&(meas_coef>10**(-6))))[0]
+                #print(len(meas_coef))
                 finalout['attempt_flag_CRI_unitless'] = 1
-                if (keycheck.__contains__('submicron')&(UBcutoff[imode]>1)):
+                if (keycheck.__contains__('submicron')&(UBcutoff[imode]>2)):
                     for imode in Dpg:
-                        submicronfilter = np.where(Dpu[imode]<=1)[0]
+                        submicronfilter = np.where(Dpu[imode]<=2)[0]
                         Dndlogdp[imode]= Dndlogdp[imode][submicronfilter]
                         Dpg[imode] = Dpg[imode][submicronfilter]
                         Dpl[imode] = Dpl[imode][submicronfilter]
-                        Dpu[imode] = Dpu[imode][submicronfilter]
-
+                        Dpu[imode] = Dpu[imode][submicronfilter]    
 
                 Results = ISARA.Retr_CRI(full_wvl, val_wvl, finalout, Dndlogdp, Dpg, CRI_p, Size_equ, 
                     Nonabs_fraction, Shape, Rho_dry, num_theta, path_optical_dataset, path_mopsmap_executable)    
+
                 if Results["dry_RRI_unitless"] is not None:
                     finalout['attempt_flag_CRI_unitless'] = 2
                     #print(Results["RRIdry"])
                     CRI_dry = np.array([Results["dry_RRI_unitless"],Results["dry_IRI_unitless"]])
                     for key in Results:
                         finalout[key] = Results[key]
+
+
                     #if (RH_amb[i1].astype(str) != 'nan') and (measured_coef_wet[i1].astype(str) != 'nan'):
                     if np.logical_not(np.isnan(finalout[f'wet_meas_sca_coef_550_m-1'])):
                         finalout['attempt_flag_kappa_unitless'] = 1
@@ -232,7 +241,7 @@ def RunISARA():
                             for key in Results:
                                 finalout[key] = Results[key]
                             #print(finalout["kappa"])    
-                            finalout[f'cal_fRH_550_unitless'] = finalout[f'wet_cal_sca_coef_550_m-1']/finalout[f'dry_meas_sca_coef_550_m-1']
+                            finalout[f'cal_fRH_550_unitless'] = finalout[f'wet_cal_sca_coef_550_m-1']/finalout[f'dry_cal_sca_coef_550_m-1']
                         else:
                             finalout[f'cal_fRH_550_unitless'] = np.nan
                             finalout[f'kappa_unitless'] = np.nan
@@ -260,7 +269,52 @@ def RunISARA():
                                 finalout[f'dry_cal_sca_coef_{val_wvl[i2]}_m-1'] = np.nan
                                 finalout[f'dry_cal_SSA_{val_wvl[i2]}_unitless'] = np.nan
                                 finalout[f'dry_cal_ext_coef_{val_wvl[i2]}_m-1'] = np.nan                       
+                else:
+                    finalout["dry_RRI_unitless"] = np.nan
+                    finalout["dry_IRI_unitless"] = np.nan
+                    for i2 in range(Lwvl):
+                        finalout[f'dry_cal_sca_coef_{full_wvl["Sc"][i2]}_m-1'] = np.nan
+                        finalout[f'dry_cal_abs_coef_{full_wvl["Abs"][i2]}_m-1'] = np.nan
+                        finalout[f'dry_cal_SSA_{full_wvl["Sc"][i2]}_unitless'] = np.nan
+                        finalout[f'dry_cal_SSA_{full_wvl["Abs"][i2]}_unitless'] = np.nan
+                        finalout[f'dry_cal_ext_coef_{full_wvl["Sc"][i2]}_m-1'] = np.nan
+                        finalout[f'dry_cal_ext_coef_{full_wvl["Abs"][i2]}_m-1'] = np.nan    
+
+                    finalout[f'cal_fRH_550_unitless'] = np.nan
+                    finalout[f'kappa_unitless'] = np.nan
+                    for i2 in range(len(full_wvl2["Sc"])):
+                        finalout[f'wet_cal_sca_coef_{full_wvl2["Sc"][i2]}_m-1'] = np.nan
+                        finalout[f'wet_cal_SSA_{full_wvl2["Sc"][i2]}_unitless'] = np.nan
+                        finalout[f'wet_cal_ext_coef_{full_wvl2["Sc"][i2]}_m-1'] = np.nan   
+                    if val_wvl is not None:
+                        for i2 in range(len(val_wvl)):
+                            finalout[f'dry_cal_sca_coef_{val_wvl[i2]}_m-1'] = np.nan
+                            finalout[f'dry_cal_SSA_{val_wvl[i2]}_unitless'] = np.nan
+                            finalout[f'dry_cal_ext_coef_{val_wvl[i2]}_m-1'] = np.nan    
+                            finalout[f'wet_cal_sca_coef_{val_wvl[i2]}_m-1'] = np.nan
+                            finalout[f'wet_cal_SSA_{val_wvl[i2]}_unitless'] = np.nan
+                            finalout[f'wet_cal_ext_coef_{val_wvl[i2]}_m-1'] = np.nan                                                           
+                    else:
+                        finalout["dry_RRI_unitless"] = np.nan
+                        finalout["dry_IRI_unitless"] = np.nan
+                        for i2 in range(Lwvl):
+                            finalout[f'dry_cal_sca_coef_{full_wvl["Sc"][i2]}_m-1'] = np.nan
+                            finalout[f'dry_cal_abs_coef_{full_wvl["Abs"][i2]}_m-1'] = np.nan
+                            finalout[f'dry_cal_SSA_{full_wvl["Sc"][i2]}_unitless'] = np.nan
+                            finalout[f'dry_cal_SSA_{full_wvl["Abs"][i2]}_unitless'] = np.nan
+                            finalout[f'dry_cal_ext_coef_{full_wvl["Sc"][i2]}_m-1'] = np.nan
+                            finalout[f'dry_cal_ext_coef_{full_wvl["Abs"][i2]}_m-1'] = np.nan
+                        if val_wvl is not None:
+                            for i2 in range(len(val_wvl)):
+                                finalout[f'dry_cal_sca_coef_{val_wvl[i2]}_m-1'] = np.nan
+                                finalout[f'dry_cal_SSA_{val_wvl[i2]}_unitless'] = np.nan
+                                finalout[f'dry_cal_ext_coef_{val_wvl[i2]}_m-1'] = np.nan                       
             else:
+                for idpg in range(len(full_dp["dpg"])):
+                    finalout[f'dndlogdp_bin{idpg}_cm-3'] = np.nan       
+                    finalout[f'dpl_bin{idpg}_um'] = np.nan
+                    finalout[f'dpg_bin{idpg}_um'] = np.nan
+                    finalout[f'dpu_bin{idpg}_um'] = np.nan                  
                 finalout["dry_RRI_unitless"] = np.nan
                 finalout["dry_IRI_unitless"] = np.nan
                 for i2 in range(Lwvl):
@@ -296,7 +350,7 @@ def RunISARA():
     #wvl = [0.450, 0.465, 0.520, 0.550, 0.640, 0.700] 
     size_equ = 'cs' 
 
-    RRIp = np.arange(1.52,1.54,0.01).reshape(-1)#np.array([1.53])#np.arange(1.45,2.01,0.01).reshape(-1)
+    RRIp = np.arange(1.51,1.55,0.01).reshape(-1)#np.arange(1.5,1.6,0.02).reshape(-1)#np.array([1.53])#np.arange(1.45,2.01,0.01).reshape(-1)
     IRIp = np.hstack((0,10**(-7),10**(-6),10**(-5),10**(-4),np.arange(0.001,0.0801,0.001).reshape(-1)))
     #np.hstack((0,10**(-7),10**(-6),10**(-5),10**(-4),np.arange(0.001,0.101,0.001).reshape(-1),np.arange(0.1,0.96,0.01).reshape(-1)))
     #np.arange(0.0,0.08,0.001).reshape(-1)
@@ -307,7 +361,7 @@ def RunISARA():
             CRI_p[io, :] = [RRIp[i2], IRIp[i1]]
             io += 1 
 
-    kappa_p = np.arange(0.0, 1.40, 0.001).reshape(-1)  
+    kappa_p = np.arange(0.0, 1.40, 0.01).reshape(-1)  
 
     # set the non-absorbing fraction of the aerosol SD
     nonabs_fraction = 0 
@@ -385,9 +439,10 @@ def RunISARA():
         val_wvl = None
     data_directory = input("Enter the name of the directory that contains\nin-situ measurements (e.g., InsituData): ")
     IFN = [f for f in os.listdir(f'./misc/{DN}/{data_directory}/') if f.endswith('.ict')]
-    #b = np.array([39,126,138]).astype(int)#
-    #IFN2 = [IFN[i] for i in b]
-    for input_filename in IFN:#IFN2:#
+    #b = np.array([170,171]).astype(int)#39,126,138,169,170,171
+    b = range(15,39,1)
+    IFN2 = [IFN[i] for i in b]
+    for input_filename in IFN2:#
         print(input_filename)
         # import the .ict data into a dictonary
         (output_dict, time, date, sd, Sc, Abs, RHsc, gamma)  = grab_ICT_Data(f'./misc/{DN}/{data_directory}/{input_filename}', modelist, full_wvl)
