@@ -442,7 +442,7 @@ def RunISARA():
     #b = np.array([170,171]).astype(int)#39,126,138,169,170,171
     b = range(15,39,1)
     IFN2 = [IFN[i] for i in b]
-    for input_filename in IFN2:#
+    for input_filename in IFN:#
         print(input_filename)
         # import the .ict data into a dictonary
         (output_dict, time, date, sd, Sc, Abs, RHsc, gamma)  = grab_ICT_Data(f'./misc/{DN}/{data_directory}/{input_filename}', modelist, full_wvl)
