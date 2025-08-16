@@ -16,6 +16,7 @@ jobs:
           pip3 install sphinx sphinx_rtd_theme myst_parser
           pip3 install numpy
           pip3 install pathos
+          pip3 install sphinx_simplepdf 
       - name: Sphinx build
         run: |
           make html
