@@ -49,14 +49,14 @@ def Retr_CRI(wvl_dict,
   """
 
   L1 = len(CRI_p[:,0]) # length of array with all possible cri values
-  L2 = len(wvl_dict["Sc"]) # number of measured scattering (Sc) coefficient channels
+  L2 = len(wvl_dict["sca"]) # number of measured scattering (Sc) coefficient channels
   ## collect scattering and absorption (Abs) coefficient channel wavelengths (wvl) into array
   wvl = None
   for iwvl in range(L2):
     if iwvl == 0:
-      wvl = np.array([wvl_dict["Sc"][iwvl],wvl_dict["Abs"][iwvl]])
+      wvl = np.array([wvl_dict["sca"][iwvl],wvl_dict["abs"][iwvl]])
     else:
-      wvl = np.hstack((wvl,np.array([wvl_dict["Sc"][iwvl],wvl_dict["Abs"][iwvl]])))
+      wvl = np.hstack((wvl,np.array([wvl_dict["sca"][iwvl],wvl_dict["abs"][iwvl]])))
   ##
   wvl = np.sort(wvl, axis=None) # sort array of wavelengths in ascending order
   ## Prepare output arrays and dictionary
@@ -68,15 +68,15 @@ def Retr_CRI(wvl_dict,
   ref_scat_coef = np.full((L2),np.nan)## prepare arrays of measured scattering and absorption coefficients
   ref_abs_coef = np.full((L2),np.nan)  
   for i2 in range(L2):
-    Results[f'dry_cal_sca_coef_{wvl_dict["Sc"][i2]}_m-1'] = None
-    Results[f'dry_cal_abs_coef_{wvl_dict["Abs"][i2]}_m-1'] = None
-    Results[f'dry_cal_SSA_{wvl_dict["Sc"][i2]}_unitless'] = None
-    Results[f'dry_cal_SSA_{wvl_dict["Abs"][i2]}_unitless'] = None
-    Results[f'dry_cal_ext_coef_{wvl_dict["Sc"][i2]}_m-1'] = None
-    Results[f'dry_cal_ext_coef_{wvl_dict["Abs"][i2]}_m-1'] = None
+    Results[f'dry_cal_sca_coef_{wvl_dict["sca"][i2]}_m-1'] = None
+    Results[f'dry_cal_abs_coef_{wvl_dict["abs"][i2]}_m-1'] = None
+    Results[f'dry_cal_SSA_{wvl_dict["sca"][i2]}_unitless'] = None
+    Results[f'dry_cal_SSA_{wvl_dict["abs"][i2]}_unitless'] = None
+    Results[f'dry_cal_ext_coef_{wvl_dict["sca"][i2]}_m-1'] = None
+    Results[f'dry_cal_ext_coef_{wvl_dict["abs"][i2]}_m-1'] = None
     ## Assign values to prepared measured coefficients
-    ref_scat_coef[i2] = optical_measurements[f'dry_meas_sca_coef_{wvl_dict["Sc"][i2]}_m-1']
-    ref_abs_coef[i2] = optical_measurements[f'dry_meas_abs_coef_{wvl_dict["Abs"][i2]}_m-1']
+    ref_scat_coef[i2] = optical_measurements[f'dry_meas_sca_coef_{wvl_dict["sca"][i2]}_m-1']
+    ref_abs_coef[i2] = optical_measurements[f'dry_meas_abs_coef_{wvl_dict["abs"][i2]}_m-1']
     ##
   ##
   for i1 in range(L1): # initiate loop through possible cri values
@@ -92,10 +92,10 @@ def Retr_CRI(wvl_dict,
     abs_coef = np.full((L2),np.nan)  
     ## Assign values to prepared calculated coefficients
     for i2 in range(L2):
-      scat_coef[i2] = results[f'ssa_{wvl_dict["Sc"][i2]}']*results[f'ext_coeff_{wvl_dict["Sc"][i2]}_m-1']
-      abs_coef[i2] = results[f'ext_coeff_{wvl_dict["Abs"][i2]}_m-1']-results[f'ssa_{wvl_dict["Abs"][i2]}']*results[f'ext_coeff_{wvl_dict["Abs"][i2]}_m-1'] 
-      ref_scat_coef[i2] = optical_measurements[f'dry_meas_sca_coef_{wvl_dict["Sc"][i2]}_m-1']
-      ref_abs_coef[i2] = optical_measurements[f'dry_meas_abs_coef_{wvl_dict["Abs"][i2]}_m-1']
+      scat_coef[i2] = results[f'ssa_{wvl_dict["sca"][i2]}']*results[f'ext_coeff_{wvl_dict["sca"][i2]}_m-1']
+      abs_coef[i2] = results[f'ext_coeff_{wvl_dict["abs"][i2]}_m-1']-results[f'ssa_{wvl_dict["abs"][i2]}']*results[f'ext_coeff_{wvl_dict["abs"][i2]}_m-1'] 
+      ref_scat_coef[i2] = optical_measurements[f'dry_meas_sca_coef_{wvl_dict["sca"][i2]}_m-1']
+      ref_abs_coef[i2] = optical_measurements[f'dry_meas_abs_coef_{wvl_dict["abs"][i2]}_m-1']
 
     ##
     Cdif1 = abs(ref_scat_coef-scat_coef)/ref_scat_coef # calculate absolute relative difference of scattering coefficients in each channel
@@ -129,8 +129,8 @@ def Retr_CRI(wvl_dict,
     abs_coef = np.full((L2),np.nan)
 
     for i2 in range(L2):
-      scat_coef[i2] = results[f'ssa_{wvl_dict["Sc"][i2]}']*results[f'ext_coeff_{wvl_dict["Sc"][i2]}_m-1']
-      abs_coef[i2] = results[f'ext_coeff_{wvl_dict["Abs"][i2]}_m-1']-results[f'ssa_{wvl_dict["Abs"][i2]}']*results[f'ext_coeff_{wvl_dict["Abs"][i2]}_m-1'] 
+      scat_coef[i2] = results[f'ssa_{wvl_dict["sca"][i2]}']*results[f'ext_coeff_{wvl_dict["sca"][i2]}_m-1']
+      abs_coef[i2] = results[f'ext_coeff_{wvl_dict["abs"][i2]}_m-1']-results[f'ssa_{wvl_dict["abs"][i2]}']*results[f'ext_coeff_{wvl_dict["abs"][i2]}_m-1'] 
 
     Cd1 = abs(ref_scat_coef-scat_coef)/ref_scat_coef
     Cd2 = abs(ref_abs_coef-abs_coef)
@@ -141,12 +141,12 @@ def Retr_CRI(wvl_dict,
       Results["dry_RRI_unitless"] = rri
       Results["dry_IRI_unitless"] = iri
       for i2 in range(L2):
-        Results[f'dry_cal_sca_coef_{wvl_dict["Sc"][i2]}_m-1'] = results[f'ssa_{wvl_dict["Sc"][i2]}']*results[f'ext_coeff_{wvl_dict["Sc"][i2]}_m-1']
-        Results[f'dry_cal_abs_coef_{wvl_dict["Abs"][i2]}_m-1'] = results[f'ext_coeff_{wvl_dict["Abs"][i2]}_m-1']-results[f'ssa_{wvl_dict["Abs"][i2]}']*results[f'ext_coeff_{wvl_dict["Abs"][i2]}_m-1'] 
-        Results[f'dry_cal_SSA_{wvl_dict["Sc"][i2]}_unitless'] = results[f'ssa_{wvl_dict["Sc"][i2]}']
-        Results[f'dry_cal_SSA_{wvl_dict["Abs"][i2]}_unitless'] = results[f'ssa_{wvl_dict["Abs"][i2]}']
-        Results[f'dry_cal_ext_coef_{wvl_dict["Sc"][i2]}_m-1'] = results[f'ext_coeff_{wvl_dict["Sc"][i2]}_m-1']
-        Results[f'dry_cal_ext_coef_{wvl_dict["Abs"][i2]}_m-1'] = results[f'ext_coeff_{wvl_dict["Abs"][i2]}_m-1']
+        Results[f'dry_cal_sca_coef_{wvl_dict["sca"][i2]}_m-1'] = results[f'ssa_{wvl_dict["sca"][i2]}']*results[f'ext_coeff_{wvl_dict["sca"][i2]}_m-1']
+        Results[f'dry_cal_abs_coef_{wvl_dict["abs"][i2]}_m-1'] = results[f'ext_coeff_{wvl_dict["abs"][i2]}_m-1']-results[f'ssa_{wvl_dict["abs"][i2]}']*results[f'ext_coeff_{wvl_dict["abs"][i2]}_m-1'] 
+        Results[f'dry_cal_SSA_{wvl_dict["sca"][i2]}_unitless'] = results[f'ssa_{wvl_dict["sca"][i2]}']
+        Results[f'dry_cal_SSA_{wvl_dict["abs"][i2]}_unitless'] = results[f'ssa_{wvl_dict["abs"][i2]}']
+        Results[f'dry_cal_ext_coef_{wvl_dict["sca"][i2]}_m-1'] = results[f'ext_coeff_{wvl_dict["sca"][i2]}_m-1']
+        Results[f'dry_cal_ext_coef_{wvl_dict["abs"][i2]}_m-1'] = results[f'ext_coeff_{wvl_dict["abs"][i2]}_m-1']
       if val_wvl is not None: # if validation wavelengths are requested, provide outputs for those wavelengths as well
         wvl2 = None
         for iwvl in range(len(val_wvl)):
@@ -215,24 +215,24 @@ def Retr_kappa(wvl_dict,
   """
 
   L1 = len(kappa_p) # length of array with all possible kappa values
-  L2 = len(wvl_dict["Sc"]) # number of measured scattering (Sc) coefficient channels
+  L2 = len(wvl_dict["sca"]) # number of measured scattering (Sc) coefficient channels
 
   ## collect scattering coefficient channel wavelengths (wvl) into array and sort in ascending order
   wvl = None
   for i1 in range(L2):
     if i1 == 0:
-      wvl = np.array([wvl_dict["Sc"][i1]])
+      wvl = np.array([wvl_dict["sca"][i1]])
     else:
-      wvl = np.hstack((wvl,np.array([wvl_dict["Sc"][i1]])))
+      wvl = np.hstack((wvl,np.array([wvl_dict["sca"][i1]])))
   wvl = np.sort(wvl, axis=None)
   ##
   ## Prepare output dictionary
   Results = dict()
   Results["kappa_unitless"] = None
   for i2 in range(L2):
-    Results[f'wet_cal_sca_coef_{wvl_dict["Sc"][i2]}_m-1'] = None
-    Results[f'wet_cal_SSA_{wvl_dict["Sc"][i2]}_unitless'] = None
-    Results[f'wet_cal_ext_coef_{wvl_dict["Sc"][i2]}_m-1'] = None
+    Results[f'wet_cal_sca_coef_{wvl_dict["sca"][i2]}_m-1'] = None
+    Results[f'wet_cal_SSA_{wvl_dict["sca"][i2]}_unitless'] = None
+    Results[f'wet_cal_ext_coef_{wvl_dict["sca"][i2]}_m-1'] = None
   ##  
   stop_indx = 0 # initate stop index for first valid solution
   RRIw = 1.33 # set rri of water 
@@ -243,6 +243,11 @@ def Retr_kappa(wvl_dict,
     IRI_w = {}
     for imode in sd:
       gf = np.power((1+kappa_p[i1]*RH/(100-RH)),1/3) # calculate growth factor given the incrimental kappa value and the measurement relative humidity for each size mode
+      #if imode == 'SMPS':
+        #dpg_w[imode] = dpg[imode] # adjust the size distribution by multplying the growth factor by each dry particle diameter in each size mode
+        #RRI_w[imode] = CRI_d[0] # volume weighted humidified rri for each size mode
+        #IRI_w[imode] = CRI_d[1] # volume weighted humidified iri for each size mode
+      #else:
       dpg_w[imode] = np.squeeze(np.multiply(gf,dpg[imode])) # adjust the size distribution by multplying the growth factor by each dry particle diameter in each size mode
       RRI_w[imode] = (CRI_d[0]+((gf**3)-1)*RRIw)/(gf**3) # volume weighted humidified rri for each size mode
       IRI_w[imode] = (CRI_d[1]+((gf**3)-1)*IRIw)/(gf**3) # volume weighted humidified iri for each size mode
@@ -252,17 +257,17 @@ def Retr_kappa(wvl_dict,
       ref_scat_coef = np.full((L2),np.nan) # prepare array of measured scattering coefficients
       ## Assign values to prepared measured and calculated coefficients
       for i2 in range(L2):
-        scat_coef[i2] = results[f'ssa_{wvl_dict["Sc"][i2]}']*results[f'ext_coeff_{wvl_dict["Sc"][i2]}_m-1']
-        ref_scat_coef[i2] = optical_measurements[f'wet_meas_sca_coef_{wvl_dict["Sc"][i2]}_m-1']
+        scat_coef[i2] = results[f'ssa_{wvl_dict["sca"][i2]}']*results[f'ext_coeff_{wvl_dict["sca"][i2]}_m-1']
+        ref_scat_coef[i2] = optical_measurements[f'wet_meas_sca_coef_{wvl_dict["sca"][i2]}_m-1']
       ##  
       Cdif = abs(ref_scat_coef-scat_coef)/ref_scat_coef # calculate absolute relative difference of scattering coefficients in each channel
       if Cdif<0.01: # solution is valid if scattering coefficients are within 1%
         Results["kappa_unitless"] = kappa_p[i1] # store retrieved kappa
         ## store calculated scattering and extinction coefficients and SSA for measured and validation wavelengths
         for i2 in range(L2):
-          Results[f'wet_cal_sca_coef_{wvl_dict["Sc"][i2]}_m-1'] = results[f'ssa_{wvl_dict["Sc"][i2]}']*results[f'ext_coeff_{wvl_dict["Sc"][i2]}_m-1'] 
-          Results[f'wet_cal_SSA_{wvl_dict["Sc"][i2]}_unitless'] = results[f'ssa_{wvl_dict["Sc"][i2]}']
-          Results[f'wet_cal_ext_coef_{wvl_dict["Sc"][i2]}_m-1'] = results[f'ext_coeff_{wvl_dict["Sc"][i2]}_m-1']
+          Results[f'wet_cal_sca_coef_{wvl_dict["sca"][i2]}_m-1'] = results[f'ssa_{wvl_dict["sca"][i2]}']*results[f'ext_coeff_{wvl_dict["sca"][i2]}_m-1'] 
+          Results[f'wet_cal_SSA_{wvl_dict["sca"][i2]}_unitless'] = results[f'ssa_{wvl_dict["sca"][i2]}']
+          Results[f'wet_cal_ext_coef_{wvl_dict["sca"][i2]}_m-1'] = results[f'ext_coeff_{wvl_dict["sca"][i2]}_m-1']
         if val_wvl is not None:
           wvl2 = None
           for iwvl in range(len(val_wvl)):
